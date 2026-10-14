@@ -1,0 +1,28 @@
+# Local native marketing capture. Start at the photo picker with the matching
+# sample-receipt-v1.1.png as the first thumbnail (no Photos access banner).
+appId: com.mingyue.receiptdecoded
+---
+- tapOn:
+    point: 16%,24%
+- extendedWaitUntil:
+    visible: Check receipt
+    timeout: 15000
+- takeScreenshot: docs/app-store/marketing/source/02-scan
+- tapOn: Check receipt
+- runFlow:
+    when:
+      visible: Allow and check receipt
+    commands:
+      - tapOn: Allow and check receipt
+- extendedWaitUntil:
+    visible: 3 items to review
+    timeout: 15000
+- assertVisible: \$2\.49 each · 2 on receipt
+- assertNotVisible: Some receipt details may be incomplete
+- takeScreenshot: docs/app-store/marketing/source/03-results
+- tapOn: Mark Muffin Mix 500g as looks good
+- tapOn: Mark Chk Enchilada 500g as looks good
+- assertVisible: 1 item to review
+- tapOn: Reviewed \(2\)
+- assertVisible: Move Muffin Mix 500g back to review
+- takeScreenshot: docs/app-store/marketing/source/04-reviewed

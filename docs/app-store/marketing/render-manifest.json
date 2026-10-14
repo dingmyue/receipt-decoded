@@ -8,27 +8,38 @@
   "screenSource": "Current standalone native Debug app, unedited UI, fictional sample data",
   "inputs": [
     {
-      "file": "source/01-duplicates.png",
-      "sha256": "4b41d5ba9ceea1599adff9462832d19e9107a1a1bbc8a578f0d0dbd8aa9185fb",
+      "file": "source/01-home.png",
+      "sha256": "765ec814f1da65f4e96b92bc722553af4511a8afe680f47edd17deed789ac60e",
       "width": 1320,
       "height": 2868
     },
     {
-      "file": "source/02-preview.png",
-      "sha256": "b0ea1fa41e19901719e97a24490b54426a08d730b09c964d45f88e788cf11b0d",
+      "file": "source/02-scan.png",
+      "sha256": "f702dd8fba8eb238aead6c98593027cacde5a5bf313c43e52e11a0111a055b64",
       "width": 1320,
       "height": 2868
     },
     {
-      "file": "source/03-quantity.png",
-      "sha256": "7f443d49bbc7093df41ca6fb45e49ed33c5ea7af26f485230b88c80d6289d8f3",
+      "file": "source/03-results.png",
+      "sha256": "51f61be42c61bfe3aa0358aa67405dd52c9cf546032f4a1fbccd2c5b30c71488",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "source/04-reviewed.png",
+      "sha256": "c8d9dc43fa8e2f4d26c9b5806b56c473fc968432d34075cf3c385f156ca9775e",
       "width": 1320,
       "height": 2868
     }
   ],
   "outputs": [
-    "exports/01-spot-duplicates.png",
-    "exports/02-start-with-photo.png",
-    "exports/03-confirm-quantity.png"
-  ]
+    "exports/01-home.png",
+    "exports/02-scan.png",
+    "exports/03-results.png",
+    "exports/04-reviewed.png"
+  ],
+  "syntheticAnalysisRequests": 1,
+  "aiProviderCalls": 0,
+  "captureDate": "2026-10-14",
+  "nativeCaptureFlow": "tests/ui/marketing-capture.yaml"
 }

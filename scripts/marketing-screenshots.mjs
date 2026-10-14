@@ -8,7 +8,7 @@ const project=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const root=resolve(project,'docs/app-store/marketing');
 const copy=JSON.parse(await readFile(resolve(root,'copy.json'),'utf8'));
 const {width:W,height:H}=copy.size,L=copy.layout;
-if(W!==1320||H!==2868||copy.screenshots.length!==3)throw Error('Expected three accepted-size portrait screenshots.');
+if(W!==1320||H!==2868||copy.screenshots.length!==4)throw Error('Expected four portrait marketing screenshots.');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 await mkdir(resolve(root,'exports'),{recursive:true});await mkdir(resolve(root,'source/layouts'),{recursive:true});
 const output=[],inputs=[];
@@ -35,6 +35,6 @@ for(const item of copy.screenshots){
  output.push(file);inputs.push({file:item.input,sha256:createHash('sha256').update(input).digest('hex'),width:meta.width,height:meta.height});
 }
 const thumbs=await Promise.all(output.map(p=>sharp(p).resize(330,717).png().toBuffer()));
-await sharp({create:{width:1014,height:717,channels:3,background:'#FFFFFF'}}).composite(thumbs.map((input,i)=>({input,left:i*342,top:0}))).png().toFile(resolve(root,'review-contact-sheet.png'));
+await sharp({create:{width:copy.screenshots.length*342-12,height:717,channels:3,background:'#FFFFFF'}}).composite(thumbs.map((input,i)=>({input,left:i*342,top:0}))).png().toFile(resolve(root,'review-contact-sheet.png'));
 await writeFile(resolve(root,'render-manifest.json'),JSON.stringify({format:'PNG',size:copy.size,opaque:true,screenSource:'Current standalone native Debug app, unedited UI, fictional sample data',inputs,outputs:copy.screenshots.map(s=>`exports/${s.id}.png`)},null,2)+'\n');
-console.log('Rendered and verified three opaque 1320×2868 marketing PNGs and quarter-size review sheet.');
+console.log('Rendered and verified four opaque 1320×2868 marketing PNGs and quarter-size review sheet.');

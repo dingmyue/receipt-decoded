@@ -7,16 +7,20 @@
   "method": "Proportional resize of reviewed marketing exports; no content changes",
   "outputs": [
     {
-      "file": "exports-medium/01-spot-duplicates.png",
-      "sourceSha256": "07afe198938ff609122954f556514c7c4be5f9c84eca6d7fa0f972913ce66c3d"
+      "file": "exports-medium/01-home.png",
+      "sourceSha256": "66d68d838485fb448c62788072083d74bb3188e2cc8fd8534e1cc70bb308878d"
     },
     {
-      "file": "exports-medium/02-start-with-photo.png",
-      "sourceSha256": "604713f5e882f5f8277e818393ce2ed994af586cdd4275faadfd224ca9b3a2fd"
+      "file": "exports-medium/02-scan.png",
+      "sourceSha256": "84b85e8895fae45d70dd2eef6b4d151e4293f3c03a8899c0577d79e706f91217"
     },
     {
-      "file": "exports-medium/03-confirm-quantity.png",
-      "sourceSha256": "d5f246422b2ed699a7d0fc0e5502d12293aeba46bd005c3d7df7c92af824f830"
+      "file": "exports-medium/03-results.png",
+      "sourceSha256": "7d3aaa6145e7a69d6950e328674c41c5f7e60d76222be4316bbfd5fe44f44db2"
+    },
+    {
+      "file": "exports-medium/04-reviewed.png",
+      "sourceSha256": "ebd3f1b59b1b8d0d438003241d01bbfd11badbe41d26042bb62c53aa6cdb24d3"
     }
   ]
 }

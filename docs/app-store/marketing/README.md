@@ -1,20 +1,25 @@
-# Receipt Decoded listing artwork
+# Receipt Decoded marketing screenshots — checklist redesign
 
-Deliverables: three opaque 1320×2868 PNGs in `exports/`, ordered by filename. The ZIP contains only these three upload images. `review-contact-sheet.png` is a preview, not an upload asset. Designer sign-off and copy rationale are in `../../APP_STORE_MARKETING.md`.
+Four new marketing PNGs, in the requested order: Home, receipt photo review/check, Results checklist, and Results with reviewed items expanded. These use the current standalone native iOS Debug app, without development overlays or repainted UI. The sample receipt and result are fictional and match each other.
 
-App Store Connect on October 13, 2026 marked **iPhone with Dynamic Island (medium display)** as required and the large display as optional. Matching opaque 1206×2622 exports are in `exports-medium/`. Upload only its three PNGs, excluding `manifest.json`. The original large exports remain available for the large slot.
+- `exports/`: four opaque 1320×2868 PNGs.
+- `exports-medium/`: four opaque 1206×2622 PNGs plus a metadata manifest. The two sizes follow the project's existing listing workflow.
+- `receipt-decoded-marketing-1320x2868.zip` and `receipt-decoded-marketing-1206x2622.zip`: each contains only the four marketing PNGs for its size.
+- `review-contact-sheet.png`: reduced preview of the four designs; not an upload asset.
+- `source/01-home.png`, `02-scan.png`, `03-results.png`, `04-reviewed.png`: unedited full native captures.
+- `source/sample-receipt-v1.1.png`: matching fictional receipt.
+- `copy.json`: ordered messaging, backgrounds and layout.
+- `source/layouts/`: editable SVG compositions; the source screenshots are embedded without modification.
+- `render-manifest.json`: source checksums and output provenance.
+- `archive/pre-checklist/`: previous export set and metadata retained for reference. Old source PNGs remain in `source/` and are not used by the new config.
 
-## Refreshing the artwork
+The “scan” image uses the app's existing photo preview/check page. The camera itself is the system camera interface. The fourth image shows one remaining item, two reviewed items and checked undo controls. It does not claim the receipt is error-free, that an error was confirmed, or that money was recovered.
 
-1. Keep the core promises: possible duplicates, a photo to start, and quantity confirmation. Preserve conditional language; never imply guaranteed accuracy, a refund, or typical savings.
-2. When the visible product changes, replace the three native screenshots in `source/` using `../../NATIVE_SCREENSHOT_CAPTURE.md`. Use fictional data and the ordinary product UI. Never repaint the interface.
-3. Edit `copy.json` for messaging, colors or layout. Run `pnpm marketing:render` from the repository root. This writes the PNG exports, editable SVG layouts, source SHA-256 manifest and reduced contact sheet.
-   Then run `node scripts/marketing-medium-exports.mjs` to refresh the medium-size derivatives from the reviewed large exports.
-4. Review all full images and the contact sheet for clipped text, readable qualifiers, consistent framing and accurate visible features. The renderer checks image dimensions and opacity. Verify against the final signed Release app before submission.
-5. Rebuild the ZIP from only the three current export PNGs after any revision. Do not include source files or the contact sheet in the upload set.
+## Refresh
 
-Small layout or button-label changes should not require new marketing copy. Refresh screenshots when their appearance or shown behavior no longer matches the shipped app. All current captures use one matching fictional Sample Market receipt; the capture backend made zero provider calls.
+1. Use `../../NATIVE_SCREENSHOT_CAPTURE.md` to capture the real native UI with matching synthetic data. Never repaint app UI or use a real shopper's receipt for marketing.
+2. Edit `copy.json` as needed, then run `pnpm marketing:render` and `node scripts/marketing-medium-exports.mjs`.
+3. Review every full image and the contact sheet; check typography, framing, legibility, dimensions and opacity.
+4. Rebuild each ZIP from the four configured PNGs only, excluding manifests, previews and sources.
 
-## Iteration after launch
-
-Use the current value-first order as the baseline. A useful first experiment is to swap only screenshots 1 and 2, comparing value-first against photo-first while keeping artwork, copy and other listing elements constant. Use App Store Connect product page optimization when available; choose a success metric and sufficient duration before starting, then record results and keep the better-supported order. No test or upload has been started. Avoid changing copy and order together, and do not treat a few downloads as conclusive evidence.
+These are assets for the updated checklist design. No upload, listing change, build submission, or release action was performed. Capture provenance and review notes are in `../../APP_STORE_MARKETING.md`.

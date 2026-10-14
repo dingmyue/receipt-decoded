@@ -18,4 +18,4 @@ for (const item of copy.screenshots) {
   outputs.push({ file: `exports-medium/${item.id}.png`, sourceSha256: createHash('sha256').update(input).digest('hex') });
 }
 await writeFile(resolve(outputDir, 'manifest.json'), JSON.stringify({ size: { width: 1206, height: 2622 }, opaque: true, method: 'Proportional resize of reviewed marketing exports; no content changes', outputs }, null, 2) + '\n');
-console.log('Verified three opaque 1206×2622 PNGs for medium iPhone displays.');
+console.log('Verified four opaque 1206×2622 PNGs for medium iPhone displays.');

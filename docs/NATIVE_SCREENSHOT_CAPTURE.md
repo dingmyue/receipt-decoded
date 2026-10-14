@@ -1,50 +1,44 @@
-# Reproducing native screenshot inputs
+# Native marketing captures — checklist v1.1
 
-Marketing inputs are captured from the current standalone iPhone simulator app using its ordinary Home → receipt preview → result → quantity-answer screens. This avoids Expo Go controls without changing the production UI, adding a hidden QA route or disabling the Release HTTPS requirement. Use synthetic receipt data only; do not upload a shopper's private receipt for marketing captures.
+The current set contains Home, receipt photo review/check, three unchecked Results groups, and one unchecked group with two Reviewed rows expanded. Source PNGs come from the actual standalone native iOS Debug app, without Expo Go controls or edited UI. Use only the matching fictional sample receipt.
 
-## Native Debug build
+## Local environment
 
-The existing iOS project and installed Pods are required. Build only the booted iPhone 17 Pro Max (1320 × 2868 screen); do not build generic simulator architectures:
-
-```sh
-xcodebuild \
-  -workspace ios/ReceiptDecoded.xcworkspace \
-  -scheme ReceiptDecoded \
-  -configuration Debug \
-  -destination 'platform=iOS Simulator,id=2A12F855-3888-478E-81B4-6C32A6B9D74E' \
-  -derivedDataPath /tmp/receipt-decoded-v0-debug \
-  ONLY_ACTIVE_ARCH=YES \
-  CODE_SIGNING_ALLOWED=NO \
-  'GCC_PREPROCESSOR_DEFINITIONS=$(inherited) RCT_METRO_PORT=8083' \
-  build
-```
-
-Output: `/tmp/receipt-decoded-v0-debug/Build/Products/Debug-iphonesimulator/ReceiptDecoded.app`. This is a simulator Debug build, not a signed distribution archive or Release verification.
-
-SDK 57 uses prebuilt React Native Core, which may retain its compiled default Metro port. The existing React Native bundle provider reads the `RCT_jsLocation` native user default, so select the isolated screenshot Metro explicitly when launching:
+Use the booted iPhone 17 Pro Max simulator `2A12F855-3888-478E-81B4-6C32A6B9D74E`, whose full screen is 1320×2868. Reuse the existing simulator Debug app at `/tmp/receipt-decoded-v0-debug/Build/Products/Debug-iphonesimulator/ReceiptDecoded.app` if available. The app installed on the simulator may be a Release build; explicitly install the Debug build for local HTTP fixtures. Do not change the Release client's HTTPS rule.
 
 ```sh
-xcrun simctl install \
-  2A12F855-3888-478E-81B4-6C32A6B9D74E \
-  /tmp/receipt-decoded-v0-debug/Build/Products/Debug-iphonesimulator/ReceiptDecoded.app
-xcrun simctl launch --terminate-running-process \
-  2A12F855-3888-478E-81B4-6C32A6B9D74E \
-  com.mingyue.receiptdecoded \
-  -RCT_jsLocation localhost:8083
+pnpm marketing:sample
+pnpm marketing:capture-server
 ```
 
-No AppDelegate change is needed. Keep screenshot Metro separate from the user's ordinary Expo Go server. Configure only its public backend URL to the local deterministic mock; never expose an OpenAI key to Metro, screenshots or mobile configuration. The Release client continues to reject HTTP backend URLs.
+The sample is `docs/app-store/marketing/source/sample-receipt-v1.1.png`. The loopback backend on port 8790 uses the existing validated three-product fixture with explicit USD currency. It reads no API credential and calls no AI provider. Run an isolated Metro in another terminal:
 
-## Capture and honesty
+```sh
+EXPO_NO_DOTENV=1 EXPO_PUBLIC_AI_BASE_URL=http://127.0.0.1:8790 REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1 pnpm exec expo start --go --lan --port 8084
+```
 
-Run `pnpm marketing:sample` to generate `docs/app-store/marketing/source/sample-receipt.png`, then `pnpm marketing:capture-server` for a loopback-only backend on port 8790. It normalizes and validates a matching fictional Sample Market receipt: two Sparkling water product rows at 1789 cents and two linked container deposits at 120 cents; the printed total is 3818 cents and the conditional extra is 1909 cents. It reads no API credential and makes no provider call. Start a separate Metro with `EXPO_PUBLIC_AI_BASE_URL=http://localhost:8790 pnpm exec expo start --go --localhost --port 8083`. The app receives the ordinary validated result through its existing consent-protected endpoint. Use the normal explicit permission flow, then normal quantity controls to create the “2 or more” expected state. No UI text, monetary values or controls are painted into the source screen capture.
+Install and launch only the local simulator Debug app:
 
-Capture the full native screen after transient loading/debug notifications disappear. Keep conditional amount/accuracy text and quantity controls visible. Preserve source PNGs separately from marketing copy and framing so replacing a screenshot does not repaint the app UI. Identify these captures as standalone Debug inputs in internal evidence, and verify the final Release UI before public listing submission.
+```sh
+xcrun simctl install 2A12F855-3888-478E-81B4-6C32A6B9D74E /tmp/receipt-decoded-v0-debug/Build/Products/Debug-iphonesimulator/ReceiptDecoded.app
+xcrun simctl launch --terminate-running-process 2A12F855-3888-478E-81B4-6C32A6B9D74E com.mingyue.receiptdecoded -RCT_jsLocation 127.0.0.1:8084
+```
 
-## The captured source set
+The bundle provider honors `RCT_jsLocation`; no AppDelegate edit is needed. If the existing Debug app is unavailable, build the installed native project/Pods for only this simulator with `xcodebuild -workspace ios/ReceiptDecoded.xcworkspace -scheme ReceiptDecoded -configuration Debug -destination 'platform=iOS Simulator,id=2A12F855-3888-478E-81B4-6C32A6B9D74E' -derivedDataPath /tmp/receipt-decoded-v0-debug ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build`. This is local simulator work, not a signed build or submission.
 
-Current source PNGs are in `docs/app-store/marketing/source/`: `01-duplicates.png`, `02-preview.png` and `03-quantity.png`. They were captured through Simulator Save Screen from the standalone Debug app, using the unchanged product components and the fictional sample. The temporary backend reported one synthetic check and zero provider calls. No real receipt or personal information was used.
+## Capture sequence
 
-Use the simulator's status-bar override for 9:41, full battery and signal before capture; clear it afterwards. If an iOS return-to-Expo-Go breadcrumb appears, use the simulator Home button then relaunch the native app without terminating it; this preserves the preview and clears that system breadcrumb. Never paint over the app's interface to hide development chrome. Keep the entire result and quantity qualification in frame.
+1. Add the fictional sample to simulator Photos. Override the status bar to 9:41 with full signal and a discharging 100% battery. If a return-to-Expo-Go breadcrumb appears, press Home and relaunch the native app without stopping it; do not paint out the breadcrumb.
+2. Save Home as `source/01-home.png` and open Choose from Photos.
+3. Select the matching sample. Save the ordinary Review receipt page before checking as `source/02-scan.png`.
+4. Use Check receipt and the existing explicit consent flow if necessary. Save the three-item checklist as `source/03-results.png`.
+5. Check Muffin Mix and Chk Enchilada, then expand Reviewed (2). Save `source/04-reviewed.png` with Pancake still active and the two checked undo controls visible.
+6. Clear the simulator status-bar override. Verify `/__capture/status` reports a synthetic request and zero provider calls.
 
-`pnpm marketing:render` reads `docs/app-store/marketing/copy.json` and these raw inputs, then exports exactly three opaque PNGs to `docs/app-store/marketing/exports/`. Editable SVG layouts, a quarter-size contact sheet and a SHA-256 source manifest are saved alongside them. Replace the PNG inputs with fresh native captures for later product versions; do not use an AI image model to reconstruct the app's UI.
+`tests/ui/marketing-capture.yaml` automates steps 3–5 with Maestro and Java 17+, assuming the matching sample is the first picker thumbnail and there is no Photos-access banner. Verify the thumbnail position before using coordinate selection. No personal receipt is used or uploaded.
+
+## Artwork and packages
+
+Run `pnpm marketing:render`, then `node scripts/marketing-medium-exports.mjs`. The config selects exactly four source PNGs. The renderer preserves source content, wraps it in the consistent device composition, checks dimensions/opacity, and records SHA-256 source hashes. Final sets are `exports/` (1320×2868) and `exports-medium/` (1206×2622). Package only the four configured PNGs in each ZIP; omit source, preview and manifest files.
+
+Review full exports and the contact sheet for clipped copy, legible text, matching receipt data, complete native screen bounds, and development chrome. These are current native Debug captures; verify the signed app matches them before publishing this future UI update. No upload, listing change, or store submission is part of capture.

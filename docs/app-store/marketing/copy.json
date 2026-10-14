@@ -2,8 +2,9 @@
   "size": { "width": 1320, "height": 2868 },
   "layout": { "textX": 96, "brandY": 124, "headlineY": 270, "headlineSize": 108, "headlineLeading": 120, "supportY": 489, "supportSize": 42, "phoneY": 616, "screenWidth": 960, "bezel": 22 },
   "screenshots": [
-    { "id": "01-spot-duplicates", "headline": ["Spot possible", "duplicates."], "support": "See repeated items and related charges.", "input": "source/01-duplicates.png", "background": "#27332D", "headlineColor": "#F7F5EF", "supportColor": "#DEE2D9" },
-    { "id": "02-start-with-photo", "headline": ["Start with", "a photo."], "support": "Take a photo or choose one.", "input": "source/02-preview.png", "background": "#F7F5EF", "headlineColor": "#27332D", "supportColor": "#657069" },
-    { "id": "03-confirm-quantity", "headline": ["Confirm what", "you bought."], "support": "Repeated purchases may be correct.", "input": "source/03-quantity.png", "background": "#E7F0E8", "headlineColor": "#27332D", "supportColor": "#657069" }
+    { "id": "01-home", "headline": ["Make sense of", "your receipt."], "support": "Spot possible duplicate charges.", "input": "source/01-home.png", "background": "#27332D", "headlineColor": "#F7F5EF", "supportColor": "#DEE2D9" },
+    { "id": "02-scan", "headline": ["Start with", "a photo."], "support": "Take a photo or choose one.", "input": "source/02-scan.png", "background": "#F7F5EF", "headlineColor": "#27332D", "supportColor": "#657069" },
+    { "id": "03-results", "headline": ["Repeated items.", "One clear list."], "support": "See unit prices and repeat counts.", "input": "source/03-results.png", "background": "#E7F0E8", "headlineColor": "#27332D", "supportColor": "#657069" },
+    { "id": "04-reviewed", "headline": ["Check off.", "Keep track."], "support": "Reviewed items stay easy to undo.", "input": "source/04-reviewed.png", "background": "#27332D", "headlineColor": "#F7F5EF", "supportColor": "#DEE2D9" }
   ]
 }
