@@ -53,7 +53,7 @@ The live script processes six synthetic cases via the complete HTTP upload → i
 - `lib/`: temporary photo handling, in-memory session, networking and formatting.
 - `shared/`: strict response validation, integer-cent calculations, policy content and publisher placeholders.
 - `server/`: bounded multipart uploads, image normalization and long-receipt close-ups, strict structured AI extraction, deterministic estimates, safe errors, rate/concurrency controls and durable daily aggregate reservations.
-- `assets/`: original opaque icon and splash artwork.
+- `assets/`: selected opaque icon and original splash artwork. `icon-master.png` preserves the adapted owner-provided icon; `pnpm assets:generate` exports it to `icon.png` without restoring the previous design.
 
 The app uploads one JPEG plus consent to `POST /api/receipt/analyze`. The backend accepts JPEG/PNG/WebP, strips metadata, retains no receipt database, requests `store:false`, validates output, and returns safe receipt data. Single quantity-two product rows, FSA summaries and duplicate fees alone are not duplicate product groups. Fully reversed product charges are accounted for. Unknown price/link/currency calculations are suppressed rather than invented.
 

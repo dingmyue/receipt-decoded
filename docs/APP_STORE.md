@@ -1,8 +1,8 @@
 # Receipt Decoded 1.0 — release handoff
 
-The V0 app and backend are implemented on Expo SDK 57. This is a local release candidate, not an uploaded or signed distribution. Do not submit while any placeholder remains. No remote deployment, Git push, EAS project creation or App Store submission has been performed.
+The V0 app and backend are implemented on Expo SDK 57. The Expo project and Apple app record are linked, the server was deployed by the owner, and App Store listing setup is recorded in `docs/APP_STORE_SETUP_STATUS.md`. A signed distribution must still be uploaded and tested. No App Review submission or public release has been performed.
 
-Use `docs/DISTRIBUTION_CHECKLIST.md` for the current ordered owner handoff and exact shared Render settings. The public base is now `https://little-moments-api.onrender.com/receipt-decoded`; those routes still need deployment. Publisher, support email, Render/Oregon hosting and Render dashboard retention are filled. Remaining policy details include the OpenAI processing region and publication effective date.
+Use `docs/DISTRIBUTION_CHECKLIST.md` for the current ordered owner handoff and exact shared Render settings. The public base is `https://little-moments-api.onrender.com/receipt-decoded`; live Expo Go analysis against the deployed service passed. Publisher, support email, effective date (October 13, 2026), Render/Oregon hosting and Render dashboard retention are filled. The owner confirmed standard OpenAI API usage without a selected region. The local policy has no processing-region placeholder; its server copy must be redeployed before submission.
 
 ## Owner configuration to complete
 
@@ -22,7 +22,7 @@ Use `docs/DISTRIBUTION_CHECKLIST.md` for the current ordered owner handoff and e
 | Territories and price | All available App Store countries and regions; free, no in-app purchases |
 | EU trader status | `[Trader/non-trader declaration and required verified contact details]`, if distributing in the EU |
 
-`pnpm release:check` intentionally fails until these details are completed. The production EAS pre-install hook runs that check. Run `pnpm release:check -- --online` after deployment to verify public pages and health. This check does not attest Apple approval or real-receipt accuracy.
+`pnpm release:check` intentionally fails until these details are completed. The production EAS pre-install hook uses `--build --online`: it checks secure connectivity, app identity, project linkage and excludes server keys, while reporting unfinished publication details as warnings for the first signed test build. The full public-submission check remains `pnpm release:check -- --online`; App Store metadata and policy placeholders must pass before submitting. Neither check attests Apple approval or real-receipt accuracy.
 
 ## App Store listing (English / US)
 
@@ -97,7 +97,7 @@ Apple’s [review guidelines](https://developer.apple.com/app-store/review/guide
 
 ## Age rating and content rights
 
-Complete Apple’s current age-rating questionnaire based on the actual receipt-only product. There is no public user-generated content, social interaction, chat, browser, advertising, gambling, contests, violence or mature content in the app. AI output is restricted to a receipt schema, rather than a general-purpose chatbot. Do not invent an age rating before App Store Connect computes it. The app is not specifically directed to children. Confirm territory-specific requirements and whether pharmacy receipts affect your selected content descriptors. The receipt icon and splash artwork are original code-generated assets; no retailer logos are bundled.
+Complete Apple’s current age-rating questionnaire based on the actual receipt-only product. There is no public user-generated content, social interaction, chat, browser, advertising, gambling, contests, violence or mature content in the app. AI output is restricted to a receipt schema, rather than a general-purpose chatbot. Do not invent an age rating before App Store Connect computes it. The app is not specifically directed to children. Confirm territory-specific requirements and whether pharmacy receipts affect your selected content descriptors. The app icon uses owner-provided artwork adapted into a full-square iOS asset; the splash artwork is code-generated. No retailer logos are bundled.
 
 ## Build and distribution
 

@@ -2,11 +2,14 @@
 
 Deliverables: three opaque 1320×2868 PNGs in `exports/`, ordered by filename. The ZIP contains only these three upload images. `review-contact-sheet.png` is a preview, not an upload asset. Designer sign-off and copy rationale are in `../../APP_STORE_MARKETING.md`.
 
+App Store Connect on October 13, 2026 marked **iPhone with Dynamic Island (medium display)** as required and the large display as optional. Matching opaque 1206×2622 exports are in `exports-medium/`. Upload only its three PNGs, excluding `manifest.json`. The original large exports remain available for the large slot.
+
 ## Refreshing the artwork
 
 1. Keep the core promises: possible duplicates, a photo to start, and quantity confirmation. Preserve conditional language; never imply guaranteed accuracy, a refund, or typical savings.
 2. When the visible product changes, replace the three native screenshots in `source/` using `../../NATIVE_SCREENSHOT_CAPTURE.md`. Use fictional data and the ordinary product UI. Never repaint the interface.
 3. Edit `copy.json` for messaging, colors or layout. Run `pnpm marketing:render` from the repository root. This writes the PNG exports, editable SVG layouts, source SHA-256 manifest and reduced contact sheet.
+   Then run `node scripts/marketing-medium-exports.mjs` to refresh the medium-size derivatives from the reviewed large exports.
 4. Review all full images and the contact sheet for clipped text, readable qualifiers, consistent framing and accurate visible features. The renderer checks image dimensions and opacity. Verify against the final signed Release app before submission.
 5. Rebuild the ZIP from only the three current export PNGs after any revision. Do not include source files or the contact sheet in the upload set.
 

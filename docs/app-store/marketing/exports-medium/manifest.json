@@ -1,0 +1,22 @@
+{
+  "size": {
+    "width": 1206,
+    "height": 2622
+  },
+  "opaque": true,
+  "method": "Proportional resize of reviewed marketing exports; no content changes",
+  "outputs": [
+    {
+      "file": "exports-medium/01-spot-duplicates.png",
+      "sourceSha256": "07afe198938ff609122954f556514c7c4be5f9c84eca6d7fa0f972913ce66c3d"
+    },
+    {
+      "file": "exports-medium/02-start-with-photo.png",
+      "sourceSha256": "604713f5e882f5f8277e818393ce2ed994af586cdd4275faadfd224ca9b3a2fd"
+    },
+    {
+      "file": "exports-medium/03-confirm-quantity.png",
+      "sourceSha256": "d5f246422b2ed699a7d0fc0e5502d12293aeba46bd005c3d7df7c92af824f830"
+    }
+  ]
+}

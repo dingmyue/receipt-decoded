@@ -2,8 +2,8 @@
   "publisherName": "Mingyue Ding",
   "supportEmail": "littlemoments.support@gmail.com",
   "publicSiteUrl": "https://little-moments-api.onrender.com/receipt-decoded",
-  "effectiveDate": "[Effective date]",
-  "bundleIdentifierConfirmed": false,
-  "appleTeamId": "[Apple Developer team ID]",
-  "appStoreConnectAppId": "[App Store Connect app ID]"
+  "effectiveDate": "2026-10-13",
+  "bundleIdentifierConfirmed": true,
+  "appleTeamId": "H58VQCUZ9J",
+  "appStoreConnectAppId": "6822563840"
 }

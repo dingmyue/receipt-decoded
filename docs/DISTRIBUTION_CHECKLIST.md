@@ -1,29 +1,26 @@
 # Receipt Decoded — remaining steps to distribute
 
-Verified October 13, 2026. The shared-server candidate is compatible with Little Moments in local tests under the exact production Node version. Receipt Decoded's mobile client/server contract passes. The receipt extension is not deployed, enabled or connected to an EAS production build yet. No Git push, Render configuration change, EAS project creation, signing, upload or submission was performed.
+Updated October 13, 2026. The shared-server candidate passed compatibility tests with Little Moments under the production Node version, and the mobile client/server contract passed. After your Render deployment, a fictional receipt was verified through Expo Go against Render. The Expo project is linked and the Apple app record is created. A signed production build, TestFlight upload and App Review submission still require completion; recheck live server availability before building.
 
 ## Information to provide
 
-Already filled: publisher **Mingyue Ding**, support **littlemoments.support@gmail.com**, shared Render hostname, Oregon hosting region and Render dashboard's 7-day application-log retention. The selected launch is free, with no subscriptions or ads, in all available App Store territories.
+Already filled: publisher **Mingyue Ding**, support **littlemoments.support@gmail.com**, effective date **October 13, 2026**, shared Render hostname, Oregon hosting region and Render dashboard's 7-day application-log retention. The selected launch is free, with no subscriptions or ads, in all available App Store territories.
 
 | Needed | Where to find it / action |
 | --- | --- |
-| Confirm `com.mingyue.receiptdecoded` as this app's bundle ID | Apple Developer → Certificates, Identifiers & Profiles → Identifiers. Register a separate explicit App ID for Receipt Decoded if absent; check availability. It must match the EAS build and App Store app record. |
-| Apple Team ID | Apple Developer → Membership details; the 10-character Team ID, not a password. |
-| App Review contact phone and preferred email | Use Mingyue Ding and the support email unless you prefer another reachable review contact. Put the phone in App Store Connect, not public app code. |
 | EU trader declaration | Complete your own declaration in App Store Connect; provide the verified public contact details Apple requests if declaring trader status. |
-| OpenAI project processing region | Confirm the production project's data/region configuration before replacing `[OpenAI processing region]` in the Privacy Policy. The code uses the standard API endpoint; it does not configure regional residency. |
-| Policy effective date | Use the date the finalized policy is published, in YYYY-MM-DD format. |
 
-Later, provide the **numeric App Store Connect Apple ID** and **EAS project UUID** after creating those records. Keep passwords, verification codes, API keys and signing credentials in the relevant service's secure setup flow; no need to paste them into chat.
+Confirmed and saved: bundle ID **`com.mingyue.receiptdecoded`**, Apple Team ID **`H58VQCUZ9J`**, App Store Connect Apple ID **`6822563840`**, and EAS project UUID **`b41c5690-5f18-40f7-a36f-b885fac3873c`**. Keep passwords, verification codes, API keys and signing credentials in the relevant service's secure setup flow.
+
+App Review contact details are saved in Apple’s private review form. The owner confirmed standard OpenAI API usage with no selected processing region; the local policy now states that no regional data residency is enabled and processing may occur outside the user's country. Redeploy the synced Little Moments server copy before submission. See `docs/APP_STORE_SETUP_STATUS.md` for listing completion.
 
 ## 1. Finalize the local configuration
 
-Save the reviewed app in its own Git repository and record the reviewed server changes in Little Moments. Receipt Decoded currently has no initial commit; make that commit before the distribution workflow prompts for it. A remote app repository is useful for backup, but it does not need a Render service. Only Little Moments' server repository is deployed to the existing service.
+Save the reviewed app changes in its own Git repository and record reviewed server changes in Little Moments. Receipt Decoded has its initial commit. A remote app repository is useful for backup, but it does not need a Render service. Only Little Moments' server repository is deployed to the existing service.
 
-In `shared/app-info.json`, fill the Team ID, effective date and eventual App Store app ID, and set `bundleIdentifierConfirmed: true` after confirming the identifier. `publicSiteUrl` is already `https://little-moments-api.onrender.com/receipt-decoded`.
+`shared/app-info.json` now contains the verified Team ID and App Store app ID, with `bundleIdentifierConfirmed: true`. `publicSiteUrl` is `https://little-moments-api.onrender.com/receipt-decoded` and `effectiveDate` is `2026-10-13`. `eas.json` targets this Apple app under `submit.production.ios`.
 
-Complete the OpenAI processing-region placeholder in `shared/legal-copy.json`; confirm there is no additional hosting log forwarding requiring a separate retention disclosure. Then run from Receipt Decoded:
+The policy placeholder is resolved and exported HTML regenerated. Confirm there is no additional hosting log forwarding requiring a separate retention disclosure, then run from Receipt Decoded after any future changes:
 
 ```sh
 pnpm policies:export
@@ -79,12 +76,14 @@ After deployment, run `pnpm backend:verify-online` from Receipt Decoded. Both ap
 
 If receipt configuration needs fixing, set `RECEIPT_DECODED_ENABLED=false` and restart; Little Moments routes continue. The full rollback is the recorded previous revision and original `pnpm install` build command. Preserve both apps' persistent state.
 
-## 3. Create this app's Expo project
+## 3. Expo project configuration
 
-The CLI is already signed in to **mingyueding**. From Receipt Decoded, initialize a new EAS project for this app; do not link Little Moments' project. Use a current EAS CLI:
+Completed October 13: linked `@mingyueding/receipt-decoded`, project ID `b41c5690-5f18-40f7-a36f-b885fac3873c`, uploaded the selected icon and set project-scoped production `EXPO_PUBLIC_AI_BASE_URL` to the Render receipt base. The EAS profiles explicitly select the `sdk-57` iOS build image. No account-wide variables were changed.
+
+The CLI is signed in to **mingyueding**. The existing project is already linked. For a fresh checkout, use the existing project ID rather than creating another project:
 
 ```sh
-pnpm dlx eas-cli@latest init
+pnpm dlx eas-cli@latest init --id b41c5690-5f18-40f7-a36f-b885fac3873c
 ```
 
 Ensure `app.json` contains the new `expo.extra.eas.projectId`. Because this app has a dynamic config file, copy the supplied project ID into the static config if EAS cannot write it automatically. Preserve the existing SDK 57 configuration and `eas.json` build profiles.
@@ -98,6 +97,8 @@ EXPO_PUBLIC_AI_BASE_URL=https://little-moments-api.onrender.com/receipt-decoded
 Use the same URL for `preview` if making a preview build against this service. Do not upload the OpenAI key, Little Moments' app secret or either local `.env` to EAS. Inspect account-wide variables too, so a server key is not inherited. The local `.env` remains for laptop development; it does not configure cloud builds. See [Expo's environment-variable guide](https://docs.expo.dev/eas/environment-variables/).
 
 ## 4. Create the Apple app record
+
+Completed October 13: [Receipt Decoded, Apple ID 6822563840](https://appstoreconnect.apple.com/apps/6822563840/distribution). The explicit bundle identifier was registered on team `H58VQCUZ9J`; iOS, English (U.S.) and SKU `receipt-decoded-ios-001` were selected. Category, pricing, availability and submission declarations remain to be configured. Apple showed a user-access save warning after creation and reported that all existing users have access, matching the selected Full Access setting.
 
 Sign into [App Store Connect](https://appstoreconnect.apple.com). Accept any outstanding Apple agreements yourself, then Apps → + → New App, per [Apple's app-record guide](https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app/).
 
@@ -124,7 +125,7 @@ pnpm dlx eas-cli@latest build --platform ios --profile production
 pnpm dlx eas-cli@latest submit --platform ios --latest
 ```
 
-The production pre-install hook intentionally stops incomplete builds. During EAS signing, sign into the correct Apple account/team and approve provisioning for this app. Do not revoke Little Moments' certificates. EAS Submit uploads the binary to App Store Connect; it does not publish the public listing. After processing, add yourself as an internal TestFlight tester and install the build. See [Expo's iOS submission guide](https://docs.expo.dev/submit/ios/).
+The production pre-install hook stops invalid build configuration, unreachable/wrong policy routes and insecure or missing backend setup. It warns about unfinished publication details so the first signed test build can be prepared before the App Store app record and policy metadata are finalized. Run the full `pnpm release:check -- --online` before submission; it still rejects these placeholders. During EAS signing, sign into the correct Apple account/team and approve provisioning for this app. Do not revoke Little Moments' certificates. EAS Submit uploads the binary to App Store Connect; it does not publish the public listing. After processing, add yourself as an internal TestFlight tester and install the build. See [Expo's iOS submission guide](https://docs.expo.dev/submit/ios/).
 
 Test camera/Photos, first-use permission and remembered/revoked permission, duplicate results, quantity changes, legitimate repeats, unclear receipts, offline retry, cancellation, receipt clearing, policy links and readable text on your physical iPhone. Check several actual receipts against their printed charges, plus the synthetic example. Verify the final signed app's privacy report, icon and screenshots. `docs/VALIDATION.md` records checks still requiring physical-device/accessibility verification.
 

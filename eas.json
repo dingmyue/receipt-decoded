@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.0.0",
+    "version": ">= 24.13.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -8,13 +8,23 @@
       "node": "24.19.0",
       "pnpm": "9.0.0",
       "distribution": "internal",
-      "environment": "preview"
+      "environment": "preview",
+      "ios": { "image": "sdk-57" }
     },
     "production": {
       "node": "24.19.0",
       "pnpm": "9.0.0",
       "autoIncrement": true,
-      "environment": "production"
+      "environment": "production",
+      "ios": { "image": "sdk-57" }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6822563840",
+        "appleTeamId": "H58VQCUZ9J"
+      }
     }
   }
 }

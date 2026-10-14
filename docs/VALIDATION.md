@@ -124,6 +124,14 @@ The known public base, Render hosting region and dashboard application-log reten
 
 See `docs/DISTRIBUTION_CHECKLIST.md` for remaining steps. This assessment uses normal low traffic; no server split is required for this launch.
 
+## Live Expo Go → Render verification — October 13, 2026
+
+After the owner deployed/enabled the shared backend, local `.env` was updated to `EXPO_PUBLIC_AI_BASE_URL=https://little-moments-api.onrender.com/receipt-decoded`, preserving other settings and mode 0600. Expo Go Metro was restarted on port 8082 and the app explicitly reloaded. Its served launch bundle contains the Render receipt URL.
+
+One live check in Expo Go on the iPhone 17 Pro Max simulator submitted the fictional Sample Market receipt to the production HTTPS service. The result read total $38.18, two Sparkling water charges at $17.89 and two linked Container deposit fees at $1.20. It displayed a conditional $19.09 extra. Selecting 1 purchased retained $19.09; selecting 2 or more changed to qualified expected charges. Expandable details and original receipt viewer/Back worked. The sample was cleared through the ordinary confirmation flow. The Mac locked before a final Home-screen observation could be completed; Metro was separately confirmed still running. No real shopper receipt was used. Native result evidence is `docs/ui-review/render/live-result.png`; it contains Expo Go controls and is not listing artwork.
+
+Receipt health returned 200 with `analysisAvailable: true`. Little Moments health and its three policy pages passed; its health remained 200/ok after the live receipt check. Receipt policy pages are reachable but still contain publication placeholders, so the full online release gate correctly fails those pages. Persistent accounting through a restart, signed-build/physical-device checks and an installed Little Moments generation remain separate release checks; they were not performed in this pass. Metro is left running for the owner at `exp://192.168.1.116:8082`, using Render.
+
 ## Marketing artwork validation
 
 Three composed App Store screenshots were exported as opaque, sRGB, three-channel 1320×2868 PNGs. The ZIP contains exactly these three images. Source screenshots came from the current standalone native Debug app through ordinary product flows, with fictional Sample Market receipt data. The loopback capture backend reported one synthetic check and zero provider calls. No app UI was reconstructed or repainted.

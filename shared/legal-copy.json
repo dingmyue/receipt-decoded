@@ -21,7 +21,7 @@
       },
       {
         "title": "Hosting and service protection",
-        "body": "Network providers may process IP addresses and request metadata to deliver and protect the service. Our service uses IP addresses temporarily for rate limits and saves only daily and monthly aggregate request reservations and usage totals for cost control. It does not log photos, extracted receipt text or payment details. Hosting provider: Render. Hosting region: Oregon (US West, United States). OpenAI processing region: [OpenAI processing region]. Render dashboard application logs are retained for 7 days under our current workspace plan."
+        "body": "Network providers may process IP addresses and request metadata to deliver and protect the service. Our service uses IP addresses temporarily for rate limits and saves only daily and monthly aggregate request reservations and usage totals for cost control. It does not log photos, extracted receipt text or payment details. Hosting provider: Render. Hosting region: Oregon (US West, United States). OpenAI processing: we use the standard API without regional data residency enabled. OpenAI processing is not restricted to the Render hosting region; data may be processed outside your country. Render dashboard application logs are retained for 7 days under our current workspace plan."
       },
       {
         "title": "No tracking or sale",

@@ -68,6 +68,13 @@
     "experiments": {
       "typedRoutes": true
     },
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b41c5690-5f18-40f7-a36f-b885fac3873c"
+      }
+    },
+    "owner": "mingyueding"
   }
 }
