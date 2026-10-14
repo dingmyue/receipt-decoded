@@ -1,0 +1,20 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "node": "24.19.0",
+      "pnpm": "9.0.0",
+      "distribution": "internal",
+      "environment": "preview"
+    },
+    "production": {
+      "node": "24.19.0",
+      "pnpm": "9.0.0",
+      "autoIncrement": true,
+      "environment": "production"
+    }
+  }
+}

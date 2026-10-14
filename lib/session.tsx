@@ -1,0 +1,52 @@
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { AppState } from "react-native";
+import { analyzeReceipt, ReceiptError } from "./ai-client";
+import { clearReceiptCache, deleteReceiptPhoto } from "./receipt-photo";
+import type { ReceiptAnalysis, ReceiptPhoto } from "./types";
+import { useAIConsent } from "./ai-consent";
+
+type Session = {
+  ready: boolean; privateScreen: boolean; photo: ReceiptPhoto | null; analysis: ReceiptAnalysis | null;
+  analyzing: boolean; quantities: Record<string, number | null>;
+  setPhoto: (photo: ReceiptPhoto) => void; reset: () => void; cancel: () => void;
+  analyze: () => Promise<ReceiptAnalysis>; confirm: (id: string, quantity: number | null) => void;
+};
+const Context = createContext<Session | null>(null);
+export function ReceiptSessionProvider({ children }: { children: ReactNode }) {
+  const consent = useAIConsent();
+  const [ready, setReady] = useState(false), [privateScreen, setPrivateScreen] = useState(false);
+  const [photo, setCurrentPhoto] = useState<ReceiptPhoto | null>(null);
+  const [analysis, setAnalysis] = useState<ReceiptAnalysis | null>(null);
+  const [analyzing, setAnalyzing] = useState(false), [quantities, setQuantities] = useState<Record<string, number | null>>({});
+  const initialized = useRef(false);
+  const photoRef = useRef<ReceiptPhoto | null>(null), request = useRef<AbortController | null>(null), generation = useRef(0);
+  const cancel = () => { generation.current++; request.current?.abort(); request.current = null; setAnalyzing(false); };
+  const reset = () => { cancel(); deleteReceiptPhoto(photoRef.current); photoRef.current = null; setCurrentPhoto(null); setAnalysis(null); setQuantities({}); };
+  useEffect(() => {
+    if (!initialized.current) {
+      try { clearReceiptCache(); } catch {} finally { initialized.current = true; setReady(true); }
+    }
+    const sub = AppState.addEventListener("change", (state) => {
+      setPrivateScreen(state !== "active");
+      if (state === "background") cancel();
+    });
+    return () => { sub.remove(); request.current?.abort(); };
+  }, []);
+  const setPhoto = (next: ReceiptPhoto) => {
+    cancel(); deleteReceiptPhoto(photoRef.current); photoRef.current = next; setCurrentPhoto(next); setAnalysis(null); setQuantities({});
+  };
+  const analyze = async () => {
+    if (!consent.ready || !consent.hasConsent()) throw new ReceiptError("CONSENT_REQUIRED", "Allow receipt sharing before checking this receipt.");
+    if (!photoRef.current || request.current) throw new ReceiptError("INVALID_REQUEST", "Choose a receipt photo first.");
+    const controller = new AbortController(), current = ++generation.current;
+    request.current = controller; setAnalyzing(true);
+    try {
+      const result = await analyzeReceipt(photoRef.current, true, controller.signal);
+      if (current !== generation.current) throw new ReceiptError("CANCELED", "Receipt check canceled.");
+      setAnalysis(result); setQuantities({}); return result;
+    } finally { if (current === generation.current) { request.current = null; setAnalyzing(false); } }
+  };
+  return <Context.Provider value={{ ready, privateScreen, photo, analysis, analyzing, quantities, setPhoto, reset, cancel, analyze,
+    confirm: (id, quantity) => setQuantities((old) => ({ ...old, [id]: quantity })) }}>{children}</Context.Provider>;
+}
+export function useReceiptSession() { const session = useContext(Context); if (!session) throw new Error("Missing receipt session."); return session; }

@@ -1,0 +1,8 @@
+import info from "../shared/app-info.json" with { type: "json" };
+import legal from "../shared/legal-copy.json" with { type: "json" };
+const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+export function renderPage(kind, basePath = "") {
+  const page = legal[kind];
+  const contact = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.supportEmail) && !info.supportEmail.includes("[") ? `<a href="mailto:${esc(info.supportEmail)}">${esc(info.supportEmail)}</a>` : esc(info.supportEmail);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(page.title)} · Receipt Decoded</title><style>body{margin:0;background:#f7f5ef;color:#28322e;font:17px/1.65 system-ui,sans-serif}main{max-width:720px;padding:48px 24px;margin:auto}a{color:#426557}h1{font-size:40px;line-height:1.15}h2{font-size:22px;margin-top:36px}nav{display:flex;gap:20px;flex-wrap:wrap}footer{border-top:1px solid #dbded7;margin-top:48px;padding-top:24px;font-size:14px}p{white-space:pre-line}</style></head><body><main><nav><a href="${esc(basePath)}/privacy">Privacy</a><a href="${esc(basePath)}/support">Support</a><a href="${esc(basePath)}/terms">Terms</a></nav><p>RECEIPT DECODED</p><h1>${esc(page.title)}</h1><p>${esc(page.intro)}</p>${page.sections.map((s) => `<section><h2>${esc(s.title)}</h2><p>${esc(s.body)}</p></section>`).join("")}<footer>Publisher: ${esc(info.publisherName)}<br>Contact: ${contact}<br>Effective date: ${esc(info.effectiveDate)}</footer></main></body></html>`;
+}

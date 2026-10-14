@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-10-13T04:27:20.255Z",
+  "model": "gpt-4.1-mini",
+  "syntheticOnly": true,
+  "results": [
+    {
+      "fixture": "duplicate-fees",
+      "status": "passed",
+      "groups": 1,
+      "potentialExtraCents": 1909,
+      "durationMs": 3360
+    },
+    {
+      "fixture": "quantity-two",
+      "status": "passed",
+      "groups": 0,
+      "potentialExtraCents": 0,
+      "durationMs": 2350
+    },
+    {
+      "fixture": "reversal",
+      "status": "passed",
+      "groups": 0,
+      "potentialExtraCents": 0,
+      "durationMs": 2297
+    },
+    {
+      "fixture": "two-groups",
+      "status": "passed",
+      "groups": 2,
+      "potentialExtraCents": 1149,
+      "durationMs": 2602
+    },
+    {
+      "fixture": "not-receipt",
+      "status": "passed",
+      "groups": 0,
+      "potentialExtraCents": 0,
+      "durationMs": 1131
+    },
+    {
+      "fixture": "long-overlap",
+      "status": "passed",
+      "groups": 1,
+      "potentialExtraCents": 1909,
+      "durationMs": 15486
+    }
+  ]
+}

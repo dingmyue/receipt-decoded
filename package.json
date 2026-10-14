@@ -1,0 +1,60 @@
+{
+  "name": "receipt-decoded",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "main": "expo-router/entry",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "ai-server": "node --env-file-if-exists=.env server/index.mjs",
+    "ai-server:test": "node --test server/*.test.mjs shared/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "ai-server:test:live": "node --env-file-if-exists=.env scripts/live-receipts.mjs",
+    "release:check": "node --env-file-if-exists=.env scripts/release-check.mjs",
+    "assets:generate": "node scripts/generate-assets.mjs",
+    "eas-build-pre-install": "node scripts/eas-build-pre-install.mjs",
+    "fixtures:generate": "node scripts/generate-fixtures.mjs",
+    "policies:export": "node scripts/export-policies.mjs",
+    "backend:sync-little-moments": "node scripts/sync-little-moments-backend.mjs",
+    "backend:verify-mobile": "node scripts/verify-shared-mobile.mjs",
+    "backend:verify-online": "node scripts/verify-shared-online.mjs",
+    "marketing:render": "node scripts/marketing-screenshots.mjs",
+    "marketing:sample": "node scripts/marketing-sample-receipt.mjs",
+    "marketing:capture-server": "node scripts/marketing-capture-server.mjs"
+  },
+  "dependencies": {
+    "expo": "57.0.28",
+    "expo-constants": "57.0.21",
+    "expo-file-system": "~57.0.7",
+    "expo-image-manipulator": "~57.0.21",
+    "expo-image-picker": "57.0.20",
+    "expo-linking": "57.0.12",
+    "expo-router": "57.0.26",
+    "expo-splash-screen": "~57.0.10",
+    "expo-status-bar": "57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.26.2",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "babel-preset-expo": "57.0.15",
+    "typescript": "6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "decode-uri-component": "0.5.0",
+      "xcode>uuid": "11.1.1"
+    },
+    "patchedDependencies": {
+      "query-string@7.1.3": "patches/query-string@7.1.3.patch"
+    }
+  }
+}

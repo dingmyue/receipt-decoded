@@ -1,0 +1,6 @@
+import sharp from 'sharp';
+import {mkdir} from 'node:fs/promises';
+const root='docs/app-store/marketing/source';await mkdir(root,{recursive:true});
+const rows=['--------------------------------','000123  Sparkling water    17.89','        Container deposit  1.20','000123  Sparkling water    17.89','        Container deposit  1.20','--------------------------------','SUBTOTAL                  38.18','TAX                        0.00','TOTAL USD                 38.18'];
+const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600"><rect width="1200" height="1600" fill="#F1F0EB"/><rect x="100" y="65" width="1000" height="1470" rx="12" fill="#fff"/><g fill="#27332D" font-family="Menlo,monospace"><text x="600" y="200" text-anchor="middle" font-family="Arial,sans-serif" font-size="64" font-weight="700">SAMPLE MARKET</text><text x="600" y="270" text-anchor="middle" font-size="34">Shopping receipt</text><text x="168" y="390" font-size="36">Oct 12, 2026 · USD</text>${rows.map((r,i)=>`<text xml:space="preserve" x="168" y="${510+i*78}" font-size="37">${r}</text>`).join('')}<text x="600" y="1418" text-anchor="middle" font-size="30">Sample receipt · Not for purchase</text></g></svg>`;
+await sharp(Buffer.from(svg)).removeAlpha().png().toFile(`${root}/sample-receipt.png`);console.log('Generated matching fictional sample receipt.');
