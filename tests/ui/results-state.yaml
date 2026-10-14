@@ -1,0 +1,11 @@
+# Set local fixture first; supply HEADLINE and SCREENSHOT as Maestro env values.
+appId: host.exp.Exponent
+---
+- runFlow: results-new-scan.yaml
+- extendedWaitUntil:
+    visible: ${HEADLINE}
+    timeout: 15000
+- assertVisible: View receipt
+- assertVisible: Scan another receipt
+- assertNotVisible: Mark .* as looks good
+- takeScreenshot: ${SCREENSHOT}

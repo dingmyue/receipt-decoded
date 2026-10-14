@@ -1,0 +1,16 @@
+# Run after setting the simulator's content size to accessibility-extra-extra-extra-large.
+appId: host.exp.Exponent
+---
+- assertVisible: 3 items to review
+- assertVisible: Scan another receipt
+- takeScreenshot: docs/ui-review/results-v1.1/11-largest-text-top
+- swipe:
+    start: 50%,60%
+    end: 50%,25%
+    duration: 600
+- swipe:
+    start: 50%,60%
+    end: 50%,25%
+    duration: 600
+- takeScreenshot: docs/ui-review/results-v1.1/12-largest-text-scrolled
+- assertVisible: Scan another receipt

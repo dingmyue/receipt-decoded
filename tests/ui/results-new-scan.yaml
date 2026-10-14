@@ -1,0 +1,12 @@
+# Helper: leave the current Results and analyze a seeded synthetic photo again.
+appId: host.exp.Exponent
+---
+- tapOn: Scan another receipt
+- tapOn: Scan another
+- tapOn: Choose from Photos
+- tapOn:
+    point: 16%,39%
+- extendedWaitUntil:
+    visible: Check receipt
+    timeout: 15000
+- tapOn: Check receipt

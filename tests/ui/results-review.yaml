@@ -1,0 +1,58 @@
+# Start on Results with the local complete fixture (see docs/RESULTS_REDESIGN.md).
+appId: host.exp.Exponent
+---
+- assertVisible: 3 items to review
+- assertNotVisible: Reviewed \(.*\)
+- assertNotVisible: How many did you buy\?
+- tapOn: Muffin Mix 500g
+- assertVisible: 3 items to review
+- tapOn: Details for Muffin Mix 500g
+- assertVisible: Original printed lines
+- assertVisible: 3 items to review
+- tapOn: Details for Muffin Mix 500g
+- tapOn: Mark Muffin Mix 500g as looks good
+- assertVisible: 2 items to review
+- assertVisible: Reviewed \(1\)
+- assertNotVisible: Move Muffin Mix 500g back to review
+- takeScreenshot: docs/ui-review/results-v1.1/02-mixed
+- tapOn: View receipt
+- assertVisible: Your Receipt
+- tapOn: Zoom into receipt
+- tapOn: Reset receipt zoom
+- tapOn: Back
+- assertVisible: 2 items to review
+- assertVisible: Reviewed \(1\)
+- tapOn: Mark Chk Enchilada 500g as looks good
+- assertVisible: 1 item to review
+- tapOn: Mark Pancake Choc 325g as looks good
+- assertVisible: All items reviewed
+- assertVisible: You've checked all repeated items on this receipt.
+- assertVisible: Reviewed \(3\)
+- takeScreenshot: docs/ui-review/results-v1.1/03-all-reviewed
+- tapOn: Reviewed \(3\)
+- assertVisible: Move Muffin Mix 500g back to review
+- assertVisible: Move Chk Enchilada 500g back to review
+- takeScreenshot: docs/ui-review/results-v1.1/04-reviewed-expanded
+- tapOn: Move Muffin Mix 500g back to review
+- assertVisible: 1 item to review
+- assertVisible: Mark Muffin Mix 500g as looks good
+- assertVisible: Reviewed \(2\)
+- takeScreenshot: docs/ui-review/results-v1.1/05-undo
+- tapOn: Scan another receipt
+- tapOn: Keep reviewing
+- assertVisible: 1 item to review
+- tapOn: Scan another receipt
+- tapOn: Scan another
+- assertVisible: Choose from Photos
+- tapOn: Choose from Photos
+# First thumbnail is the seeded synthetic photo; never select personal photos.
+- tapOn:
+    point: 16%,39%
+- extendedWaitUntil:
+    visible: Check receipt
+    timeout: 15000
+- tapOn: Check receipt
+- extendedWaitUntil:
+    visible: 3 items to review
+    timeout: 15000
+- assertNotVisible: Reviewed \(.*\)

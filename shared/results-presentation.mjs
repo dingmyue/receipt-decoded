@@ -1,31 +1,76 @@
-import { summarizeGroups } from './receipt-math.mjs';
-
-// Keep uncertainty precedence independent of screen layout and quantity controls.
-export function presentReceiptResults(result, quantities = {}) {
-  const groups = result.duplicateGroups;
-  const summary = summarizeGroups(groups, quantities);
-  const allExpected = groups.length > 0 && summary.expected === groups.length;
-  const unreadable = result.analysis.status === 'unreadable';
-  const currencyUnclear = groups.length > 0 && !allExpected && !result.receipt.currency;
-  const uncertain = result.analysis.status === 'partial' || summary.unknownAmounts > 0 || currencyUnclear;
-  const assumption = summary.unresolved > 0 ? 'Assumes one of each unchecked item was bought.' : 'Based on your quantities.';
-  const base = {
-    summary, allExpected, showMetadata: !unreadable, showItems: !unreadable,
-    showRetry: unreadable || uncertain,
-    showDetails: result.analysis.warnings.length > 0 || uncertain,
-    amountCents: null, amountLabel: null, amountQualifier: null,
-  };
-  if (unreadable) return { ...base, kind: 'unreadable', tone: 'amber', title: "We couldn't read this receipt", body: 'Include the whole receipt and keep prices in focus.' };
-  if (uncertain) {
-    const amountCents = !currencyUnclear && !allExpected && summary.amountCents > 0 ? summary.amountCents : null;
-    return {
-      ...base, kind: 'uncertain', tone: 'amber', title: 'Some charges are unclear',
-      body: allExpected ? 'Repeated quantities match, but other charges need review.' : groups.length > 0 ? `Check the repeated item${groups.length === 1 ? '' : 's'} below or try a clearer photo.` : 'Try a clearer photo or review the original receipt.',
-      amountCents, amountLabel: amountCents === null ? null : 'Readable potential extra',
-      amountQualifier: amountCents === null ? null : `${assumption} Other amounts couldn't be verified.`,
-    };
+// Presentation only: user review never changes the receipt analysis or billing math.
+function stableGroupIds(groups) {
+  const ids = groups.map(group => group.id);
+  if (ids.some(id => typeof id !== 'string' || !id.trim()) || new Set(ids).size !== ids.length) {
+    throw new Error('Receipt review requires unique, stable group IDs.');
   }
-  if (allExpected) return { ...base, kind: 'expected', tone: 'green', title: 'Repeated charges match your quantities', body: "This doesn't guarantee the receipt is error-free." };
-  if (groups.length > 0) return { ...base, kind: 'flagged', tone: 'amber', title: `Check ${groups.length} repeated item${groups.length === 1 ? '' : 's'}`, body: null, amountCents: summary.amountCents, amountLabel: 'Potential extra charge', amountQualifier: assumption };
-  return { ...base, kind: 'clean', tone: 'green', title: 'No obvious duplicates', body: 'AI can miss charges. Check anything that looks unusual.' };
+  return ids;
+}
+
+export function createReceiptReviewState(groups = []) {
+  return { groupIds: stableGroupIds(groups), reviewedIds: [] };
+}
+
+export function receiptReviewReducer(state, action) {
+  if (action.type === 'reset') return createReceiptReviewState(action.groups);
+  if (action.type !== 'set-reviewed' || !state.groupIds.includes(action.id)) return state;
+  const reviewedIds = state.reviewedIds.filter(id => id !== action.id);
+  if (action.reviewed) reviewedIds.push(action.id);
+  return { ...state, reviewedIds };
+}
+
+export function formatReviewPrice(cents, currency) {
+  if (cents === null) return 'Price unclear';
+  if (!currency) return (cents / 100).toFixed(2);
+  try { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(cents / 100); }
+  catch { return `${(cents / 100).toFixed(2)} ${currency}`; }
+}
+
+function presentGroup(group, result) {
+  const lines = result.lineItems.filter(line => group.relatedLineItemIds.includes(line.id));
+  const products = lines.filter(line => line.lineType === 'product');
+  // Product prices exclude linked fees/discounts. Conflicting or missing values stay unclear.
+  const prices = group.units?.map(unit => unit.productCents) ?? products.map(line => line.unitAmountCents);
+  const unitCents = prices.length && prices.every(price => Number.isSafeInteger(price) && price >= 0 && price === prices[0]) ? prices[0] : null;
+  const name = group.productName.trim() || group.originalDescription.trim();
+  let printed = group.originalDescription.trim();
+  if (group.productCode && !printed.toLowerCase().includes(group.productCode.toLowerCase())) printed = `${group.productCode} ${printed}`;
+  const comparable = text => text.toLowerCase().replace(/[\s\p{P}]+/gu, '');
+  if (comparable(name) === comparable(printed)) printed = null;
+  const price = formatReviewPrice(unitCents, result.receipt.currency);
+  const count = group.recordedQuantity;
+  return {
+    id: group.id, name, printed, unitCents, count,
+    amount: `${price}${unitCents === null ? '' : ' each'} · ${count === null ? 'Quantity unclear' : `${count} on receipt`}`,
+    reviewedAmount: `${price} · ${count === null ? 'Quantity unclear' : `×${count}`}`,
+    lines, explanation: group.explanation,
+    hasDetails: lines.length > 0 || !!group.explanation.trim(),
+  };
+}
+
+export function presentReceiptResults(result, reviewedIds = []) {
+  stableGroupIds(result.duplicateGroups); // The API contract also rejects missing/duplicate IDs.
+  const unreadable = result.analysis.status === 'unreadable';
+  const groups = unreadable ? [] : result.duplicateGroups.map(group => presentGroup(group, result));
+  const checked = new Set(reviewedIds);
+  const active = groups.filter(group => !checked.has(group.id));
+  const reviewed = groups.filter(group => checked.has(group.id));
+  const incomplete = result.analysis.status === 'partial'
+    || groups.some(group => group.unitCents === null || group.count === null || !result.receipt.currency)
+    || result.duplicateGroups.some(group => group.units === null);
+  const kind = unreadable ? 'unreadable' : !groups.length ? 'empty' : !active.length ? 'reviewed' : 'review';
+  const title = unreadable ? "We couldn't read this receipt"
+    : !groups.length ? incomplete ? 'No repeated items identified' : 'No repeated items found'
+    : !active.length ? 'All items reviewed'
+    : `${active.length} ${active.length === 1 ? 'item' : 'items'} to review`;
+  const body = unreadable ? 'Include the whole receipt and keep prices in focus.'
+    : !groups.length ? incomplete ? 'Some details may be incomplete. Review the original receipt or try a clearer photo.' : 'No repeated products were identified on this receipt. You can still check the original photo.'
+    : !active.length ? "You've checked all repeated items on this receipt."
+    : 'Check off items that look correct.';
+  return {
+    kind, title, body, active, reviewed, reviewCount: active.length, reviewedCount: reviewed.length,
+    incomplete, warnings: result.analysis.warnings,
+    notice: incomplete ? 'Some receipt details may be incomplete' : 'Receipt notes',
+    showNotice: incomplete || result.analysis.warnings.length > 0,
+  };
 }

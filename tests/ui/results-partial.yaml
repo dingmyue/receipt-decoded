@@ -1,0 +1,33 @@
+appId: host.exp.Exponent
+---
+- runFlow:
+    when:
+      visible: Check receipt
+    commands:
+      - tapOn: Check receipt
+      - extendedWaitUntil:
+          visible: 3 items to review
+          timeout: 15000
+- runFlow: results-new-scan.yaml
+- extendedWaitUntil:
+    visible: 3 items to review
+    timeout: 15000
+- assertVisible: Price unclear · 2 on receipt
+- assertVisible: Some receipt details may be incomplete
+- assertNotVisible: Some related discounts could not be verified.*
+- takeScreenshot: docs/ui-review/results-v1.1/06-partial-missing-price
+- tapOn: Some receipt details may be incomplete
+- assertVisible: Some related discounts could not be verified.*
+- swipe:
+    start: 50%,75%
+    end: 50%,35%
+    duration: 600
+- assertVisible: Try a clearer photo
+- takeScreenshot: docs/ui-review/results-v1.1/07-partial-expanded
+- tapOn: Try a clearer photo
+- assertVisible: Review receipt
+- assertVisible: View and zoom receipt photo
+- tapOn: Check receipt
+- extendedWaitUntil:
+    visible: 3 items to review
+    timeout: 15000

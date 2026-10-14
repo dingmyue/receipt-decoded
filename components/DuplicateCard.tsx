@@ -1,35 +1,65 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "@/lib/theme";
 import { formatCents } from "@/lib/format";
-import { potentialExtraCents } from "../shared/receipt-math.mjs";
-import type { DuplicateGroup, ReceiptLineItem } from "@/lib/types";
-import { Button, TextAction, typography } from "./ui";
-export function DuplicateCard({ group, lines, currency, quantity, onConfirm }: {
-  group: DuplicateGroup; lines: ReceiptLineItem[]; currency: string | null; quantity: number | null; onConfirm: (quantity: number | null) => void;
-}) {
-  const [expanded, setExpanded] = useState(false), [custom, setCustom] = useState("");
-  const n = group.recordedQuantity;
-  const expected = quantity !== null && n !== null && quantity >= n;
-  const amount = expected ? 0 : potentialExtraCents(group.units, quantity ?? 1);
-  const amountKnown = amount !== null && currency !== null;
-  const options = n && n <= 5 ? Array.from({ length: n }, (_, i) => i + 1) : [];
-  return <View style={styles.card}>
-    <Text style={[styles.status, { color: expected ? colors.greenText : colors.amberText }]}>{expected ? "Likely expected" : quantity !== null ? "Possible mistake" : "Needs your check"}</Text>
-    <View style={{ gap: 4 }}><Text style={typography.cardTitle}>{group.productName}</Text><Text style={typography.small}>{n !== null ? `${n} recorded on receipt` : "Quantity unclear"}</Text>
-      {group.originalDescription !== group.productName && <Text selectable style={styles.description}>Printed: {group.originalDescription}</Text>}
+import type { ReviewItem } from "../shared/results-presentation.mjs";
+import { typography } from "./ui";
+
+function ReviewCheckbox({ name, checked, onPress }: { name: string; checked: boolean; onPress: () => void }) {
+  return <Pressable accessibilityRole="checkbox" accessibilityLabel={checked ? `Move ${name} back to review` : `Mark ${name} as looks good`}
+    accessibilityState={{ checked }} accessibilityHint={checked ? "Returns this item to the checklist." : "Moves this item to Reviewed. These charges look correct to you."}
+    onPress={onPress} style={({ pressed }) => [styles.checkTarget, pressed && { opacity: 0.65 }]}>
+    <View style={[styles.circle, checked && styles.checked]}>{checked && <Text allowFontScaling={false} style={styles.tick}>✓</Text>}</View>
+  </Pressable>;
+}
+
+export function DuplicateCard({ item, currency, onReview }: { item: ReviewItem; currency: string | null; onReview: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  return <View style={[styles.card, !item.hasDetails && { paddingBottom: 16 }]}>
+    <View style={styles.row}>
+      <View style={styles.main}>
+        <Text accessibilityRole="header" style={styles.name}>{item.name}</Text>
+        {item.printed && <Text selectable style={styles.printed}>{item.printed}</Text>}
+        <Text style={styles.amount}>{item.amount}</Text>
+      </View>
+      <ReviewCheckbox name={item.name} checked={false} onPress={onReview} />
     </View>
-    <View style={{ gap: 4 }}>{expected || amountKnown ? <><Text adjustsFontSizeToFit={!expected} minimumFontScale={0.5} numberOfLines={expected ? undefined : 1} style={[styles.amount, expected && { color: colors.greenText }]}>{expected ? "Charges appear expected" : `Potential extra ${formatCents(amount, currency)}`}</Text><Text style={typography.small}>{quantity !== null ? `Based on ${quantity} purchased.` : "If you bought one."}</Text></> : <Text style={typography.small}>Extra charge couldn't be estimated.</Text>}</View>
-    {n !== null && <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "600" }]}>How many did you buy?</Text>}
-    {options.length > 0 && <View style={styles.choices}>{options.map((value) => <Pressable key={value} accessibilityRole="button" accessibilityLabel={value === n ? `${value} or more purchased` : `${value} purchased`} accessibilityState={{ selected: quantity === value }} onPress={() => onConfirm(value)} style={[styles.choice, quantity === value && styles.selected]}><Text style={{ color: quantity === value ? "white" : colors.textPrimary, fontSize: 15, fontWeight: "500" }}>{value === n ? `${value} or more` : value}</Text></Pressable>)}<Pressable accessibilityRole="button" accessibilityLabel="Not sure about purchased quantity" accessibilityState={{ selected: quantity === null }} onPress={() => { setCustom(""); onConfirm(null); }} style={[styles.choice, quantity === null && styles.unsureSelected]}><Text style={{ color: colors.textPrimary, fontSize: 15 }}>Not sure</Text></Pressable></View>}
-    {n !== null && !options.length && <View style={{ gap: 10 }}><TextInput accessibilityLabel="Actual purchased quantity" value={custom} onChangeText={(v) => setCustom(v.replace(/[^0-9]/g, "").slice(0, 3))} keyboardType="number-pad" placeholder="Enter quantity" placeholderTextColor={colors.textSecondary} style={styles.input} /><Button label="Confirm quantity" secondary disabled={!custom || Number(custom) < 1 || Number(custom) > 500} onPress={() => onConfirm(Number(custom))} /><TextAction label="Not sure" selected={quantity === null} onPress={() => { setCustom(""); onConfirm(null); }} /></View>}
-    {n === null && <Text style={typography.small}>Quantity couldn't be read. View receipt to check.</Text>}
-    <TextAction label={expanded ? "Hide charge details" : "Show charge details"} expanded={expanded} onPress={() => setExpanded((value) => !value)} />
+    {item.hasDetails && <Pressable accessibilityRole="button" accessibilityLabel={`Details for ${item.name}`} accessibilityState={{ expanded }}
+      onPress={() => setExpanded(value => !value)} style={({ pressed }) => [styles.detailsTarget, pressed && { opacity: 0.65 }]}>
+      <Text style={styles.detailsLabel}>{expanded ? "Hide details ⌃" : "Details ⌄"}</Text>
+    </Pressable>}
     {expanded && <View style={styles.details}>
-      <Text style={typography.small}>Original description{group.productCode ? ` · Item #${group.productCode}` : ""}</Text><Text selectable style={styles.description}>{group.originalDescription}</Text>
-      {lines.map((line) => <View key={line.id} style={styles.charge}><Text style={[typography.small, { flex: 1, color: colors.textPrimary }]}>{line.lineType === "fee" ? "Related fee · " : line.lineType === "discount" ? "Discount · " : line.lineType === "reversal" ? "Correction · " : ""}{line.originalDescription}</Text><Text style={[typography.small, { color: colors.textPrimary, textAlign: "right", flexShrink: 1 }]}>{formatCents(line.amountCents, currency)}</Text></View>)}
-      <Text style={typography.small}>{group.explanation}</Text><Text style={typography.small}>Estimate includes readable linked fees and discounts, not tax adjustments. Verify with the store.</Text>
+      {item.lines.length > 0 && <Text style={[typography.small, styles.detailTitle]}>Original printed lines</Text>}
+      {item.lines.map(line => <View key={line.id} style={styles.charge}>
+        <Text selectable style={[typography.small, styles.main]}>{line.lineType === "fee" ? "Related fee · " : line.lineType === "discount" ? "Discount · " : line.lineType === "reversal" ? "Correction · " : ""}{line.originalDescription}</Text>
+        <Text style={[typography.small, styles.lineAmount]}>{formatCents(line.amountCents, currency)}</Text>
+      </View>)}
+      {!!item.explanation && <Text style={typography.small}>{item.explanation}</Text>}
     </View>}
   </View>;
 }
-const styles = StyleSheet.create({ card: { backgroundColor: colors.surface, padding: 20, borderRadius: 24, borderWidth: 1, borderColor: colors.border, gap: 12 }, status: { fontSize: 13, lineHeight: 20, fontWeight: "600" }, description: { fontSize: 13, lineHeight: 20, color: colors.textSecondary, fontFamily: "Menlo" }, amount: { color: colors.textPrimary, fontSize: 21, lineHeight: 28, fontWeight: "600" }, charge: { flexDirection: "row", alignItems: "flex-start", gap: 12 }, choices: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, choice: { minHeight: 46, minWidth: 56, paddingHorizontal: 14, paddingVertical: 12, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }, selected: { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary }, unsureSelected: { borderColor: colors.textSecondary }, details: { borderTopWidth: 1, borderColor: colors.border, paddingTop: 12, gap: 12 }, input: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, fontSize: 16, color: colors.textPrimary, minHeight: 48 } });
+
+export function ReviewedItem({ item, onUndo }: { item: ReviewItem; onUndo: () => void }) {
+  return <View style={styles.reviewedRow}>
+    <ReviewCheckbox name={item.name} checked onPress={onUndo} />
+    <View style={styles.main}><Text style={styles.reviewedName}>{item.name}</Text><Text style={typography.small}>{item.reviewedAmount}</Text></View>
+  </View>;
+}
+
+const styles = StyleSheet.create({
+  card: { backgroundColor: colors.surface, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4, borderRadius: 19, borderWidth: 1, borderColor: colors.border },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: 8 }, main: { flex: 1, minWidth: 0 },
+  name: { fontSize: 17, lineHeight: 23, fontWeight: "700", letterSpacing: -0.25, color: colors.textPrimary },
+  printed: { marginTop: 5, fontSize: 12, lineHeight: 18, color: colors.textSecondary },
+  amount: { marginTop: 7, fontSize: 14, lineHeight: 21, fontWeight: "600", color: colors.greenText },
+  checkTarget: { width: 46, height: 46, flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  circle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: "#8A9A90", backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
+  checked: { backgroundColor: colors.greenText, borderColor: colors.greenText }, tick: { color: "white", fontSize: 19, lineHeight: 23, fontWeight: "700" },
+  detailsTarget: { minHeight: 44, alignSelf: "flex-start", justifyContent: "center" },
+  detailsLabel: { fontSize: 13, lineHeight: 19, fontWeight: "600", color: colors.greenText },
+  details: { backgroundColor: colors.background, borderRadius: 12, padding: 12, gap: 10, marginBottom: 12 },
+  detailTitle: { fontWeight: "600", color: colors.textPrimary }, charge: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  lineAmount: { flexShrink: 1, textAlign: "right" },
+  reviewedRow: { borderRadius: 13, backgroundColor: colors.greenBackground, paddingVertical: 8, paddingRight: 12, paddingLeft: 4, flexDirection: "row", alignItems: "center", gap: 6 },
+  reviewedName: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: colors.textPrimary },
+});
