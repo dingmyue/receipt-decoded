@@ -5,11 +5,15 @@
     "sections": [
       {
         "title": "Your choice",
-        "body": "Camera and photo access are used only when you choose to scan or select a receipt. Before your first receipt check, we ask for your explicit permission to send full receipt photos through our service to OpenAI for AI processing. Your choice is stored locally with its disclosure version and acceptance time, and applies to future checks on this device. Declining sends no analysis request. Turn off permission in About & privacy to require a new choice before another check. We ask again if the disclosure meaningfully changes or the saved choice is unavailable. Cover personal details you do not want processed before selecting a photo."
+        "body": "Camera and photo access are used only when you choose to scan or select a receipt. Before your first receipt check, we ask for your explicit permission to send full receipt photos through our service to OpenAI for AI processing and limited product-identification text for optional online lookup when you open Details. Your choice is stored locally with its disclosure version and acceptance time, and applies to future checks on this device. Declining sends no analysis request. Turn off permission in About & privacy to require a new choice before another check. We ask again if the disclosure meaningfully changes or the saved choice is unavailable. Cover personal details you do not want processed before selecting a photo."
       },
       {
         "title": "What is processed",
         "body": "The selected receipt photo and the purchase information visible in it are processed to identify products, charges, related fees and possible duplicates. A photo may also include personal information, loyalty numbers or payment-card digits. We do not require your name, email, an account or an installation identifier. Your quantity answers remain on the device and are not uploaded."
+      },
+      {
+        "title": "Optional product identification",
+        "body": "Opening a repeated product’s Details sends only the merchant name, item code, original product description and interpreted product name through our service to OpenAI for web search. We do not send the receipt photo, payment information or membership numbers for product lookup. Search queries may be processed by external search providers used by OpenAI. Links open external product websites in your browser, where that website’s privacy policy applies. Online matches can be approximate and may describe a different package or current catalog item. Lookup results stay only in the current receipt session and are cleared with a new receipt. No product images are requested."
       },
       {
         "title": "Temporary handling",
@@ -25,11 +29,11 @@
       },
       {
         "title": "No tracking or sale",
-        "body": "We do not sell receipt data or use it for advertising. The app does not use advertising identifiers, third-party analytics or cross-app tracking. Data is sent to the service providers described above only to operate and protect receipt analysis."
+        "body": "We do not sell receipt data or use it for advertising. The app does not use advertising identifiers, third-party analytics or cross-app tracking. Data is sent to the service providers described above only to operate and protect receipt analysis and optional product identification."
       },
       {
         "title": "Control and contact",
-        "body": "Use Clear Receipt or Scan Another Receipt to remove the app's current copy and result. Turn off AI receipt-check permission in About & privacy to prevent further uploads and cancel an active check. This does not erase provider retention logs. You can revoke camera access in iOS Settings and choose which photos to share. Contact the publisher using the support email below for questions or privacy requests. Do not email receipt photos or payment information unless necessary, and redact sensitive details first."
+        "body": "Use Clear Receipt or Scan Another Receipt to remove the app's current copy and result. Turn off AI receipt-check permission in About & privacy to prevent further uploads and cancel an active check or product lookup. This does not erase provider retention logs. You can revoke camera access in iOS Settings and choose which photos to share. Contact the publisher using the support email below for questions or privacy requests. Do not email receipt photos or payment information unless necessary, and redact sensitive details first."
       },
       {
         "title": "Accuracy and changes",

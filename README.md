@@ -57,9 +57,11 @@ The live script processes six synthetic cases via the complete HTTP upload → i
 
 The app uploads one JPEG plus consent to `POST /api/receipt/analyze`. The backend accepts JPEG/PNG/WebP, strips metadata, retains no receipt database, requests `store:false`, validates output, and returns safe receipt data. Single quantity-two product rows, FSA summaries and duplicate fees alone are not duplicate product groups. Fully reversed product charges are accounted for. Unknown price/link/currency calculations are suppressed rather than invented.
 
+Expanded duplicate-card Details optionally calls `POST /api/product/lookup` with only merchant/item identifiers and product descriptions. Responses web search uses a separately configured `OPENAI_PRODUCT_LOOKUP_MODEL`, validated source provenance and independent rate/cost protection. Results are cached only for the current receipt; checking items remains independent. See [product-identification API, configuration, privacy and tests](docs/PRODUCT_IDENTIFICATION.md).
+
 `GET /health` reports availability without secrets. Public `/privacy`, `/support`, `/terms` pages use the same content as the app. No browser CORS is needed for the native client. A public mobile service cannot securely authenticate an installation with an embedded shared secret; operational caps bound use, and deployment guidance covers abuse controls.
 
-Only EXPO_PUBLIC_AI_BASE_URL is bundled into mobile code. Keep OPENAI_API_KEY exclusively on the backend. Local `.env` is ignored by Git and excluded from EAS uploads. Little Moments was not modified.
+Only EXPO_PUBLIC_AI_BASE_URL is bundled into mobile code. Keep OPENAI_API_KEY exclusively on the backend. Local `.env` is ignored by Git and excluded from EAS uploads. The production Receipt Decoded backend lives in the Little Moments repository; backend changes are synced and verified there alongside app changes.
 
 ## Release handoff
 

@@ -1,5 +1,11 @@
 export type HealthResponse = { ok: true; analysisAvailable?: boolean };
 export type ApiErrorResponse = { error: { code: string; message: string } };
+export type ProductLookupRequest = { merchantName: string | null; productCode: string | null; originalDescription: string; interpretedName: string | null };
+export type ProductLookupResult = { status: "not_found" } | {
+  status: "matched" | "possible"; product: { name: string; brand: string | null; size: string | null };
+  source: { title: string; url: string; domain: string }; matchReason: string;
+};
+export type ProductLookupState = { status: "idle" | "loading" | "error" } | ProductLookupResult;
 export type ReceiptPhoto = { uri: string; mimeType: "image/jpeg"; width: number; height: number; size: number };
 export type ReceiptLineItem = {
   id: string; originalDescription: string; interpretedName: string | null;

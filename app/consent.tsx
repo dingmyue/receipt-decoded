@@ -19,6 +19,7 @@ export default function ConsentSheet() {
     <ScrollView contentContainerStyle={styles.content}>
       <Text accessibilityRole="header" style={[typography.title, { fontSize: 28, lineHeight: 35 }]}>Allow receipt checks with OpenAI?</Text>
       <Text style={typography.body}>To find possible duplicate charges, we send your full receipt photo through our service to OpenAI. It may contain personal or payment details.</Text>
+      <Text style={typography.body}>Opening product Details also sends the merchant, item code and product descriptions to OpenAI for online identification using external web search. We don't send the photo or payment details for this lookup.</Text>
       <Text style={typography.body}>OpenAI may retain content for abuse monitoring. We don't save receipt history.</Text>
       <Text style={typography.body}>Your choice applies to future receipt checks on this device. You can turn it off in About &amp; privacy.</Text>
       <TextAction label="Privacy Policy" onPress={() => router.push("/privacy")} disabled={busy} />

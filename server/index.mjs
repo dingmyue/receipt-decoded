@@ -6,6 +6,8 @@ import { HttpError } from "./errors.mjs";
 import { prepareImageInputs, analyzeImages } from "./receipt-analyzer.mjs";
 import { createUsageGuard } from "./usage-guard.mjs";
 import { renderPage } from "./public-pages.mjs";
+import { lookupProduct } from "./product-lookup.mjs";
+import { validateProductLookupRequest, validateProductLookupResult } from "../shared/product-lookup-contract.mjs";
 
 const positive = (value, fallback, name, max = Number.MAX_SAFE_INTEGER) => {
   if (value === undefined || value.trim() === "") return fallback;
@@ -30,6 +32,28 @@ export function loadConfig(env = process.env) {
     usageStatePath: env.USAGE_STATE_PATH === ":memory:" ? null : (env.USAGE_STATE_PATH?.trim() || "server-data/usage.json"),
     trustProxyHops: hops
   };
+  config.productLookupModel = env.OPENAI_PRODUCT_LOOKUP_MODEL?.trim() || "gpt-4.1-mini";
+  if (!/^(?:gpt-4\.1|gpt-4\.1-mini)(?:-2025-04-14)?$/.test(config.productLookupModel)) throw new Error("OPENAI_PRODUCT_LOOKUP_MODEL must be a supported GPT-4.1 or GPT-4.1 mini model (including its 2025-04-14 snapshot).");
+  config.productLookupTimeoutMs = positive(env.PRODUCT_LOOKUP_TIMEOUT_MS, 20_000, "PRODUCT_LOOKUP_TIMEOUT_MS", 30_000);
+  config.productLookupMaxRequestBytes = 4096;
+  config.productLookupMaxResponseBytes = 256 * 1024;
+  config.productLookupMaxSearchCalls = positive(env.PRODUCT_LOOKUP_MAX_SEARCH_CALLS, 3, "PRODUCT_LOOKUP_MAX_SEARCH_CALLS", 3);
+  const mini = config.productLookupModel.includes("mini");
+  // Conservative ceiling: 128k search context per call + bounded normalization, two outputs and tool fees.
+  const minimumReservation = Math.ceil(((128_000 * config.productLookupMaxSearchCalls + 100_000) * (mini ? 0.4 : 2) + 2000 * (mini ? 1.6 : 8)) / 10_000 + config.productLookupMaxSearchCalls);
+  config.productLookupBudgetCents = positive(env.PRODUCT_LOOKUP_BUDGET_CENTS, mini ? 25 : 110, "PRODUCT_LOOKUP_BUDGET_CENTS");
+  if (config.productLookupBudgetCents < minimumReservation) throw new Error("PRODUCT_LOOKUP_BUDGET_CENTS is below the conservative model/tool reservation.");
+  config.productLookupProtection = {
+    rateLimitWindowMs: positive(env.PRODUCT_LOOKUP_RATE_WINDOW_MS, 60_000, "PRODUCT_LOOKUP_RATE_WINDOW_MS"),
+    rateLimitMaxRequests: positive(env.PRODUCT_LOOKUP_RATE_MAX, 6, "PRODUCT_LOOKUP_RATE_MAX"),
+    maxConcurrentRequests: positive(env.PRODUCT_LOOKUP_MAX_CONCURRENT, 2, "PRODUCT_LOOKUP_MAX_CONCURRENT", 8),
+    dailyRequestLimit: positive(env.PRODUCT_LOOKUP_DAILY_LIMIT, 100, "PRODUCT_LOOKUP_DAILY_LIMIT"),
+    dailyBudgetCents: positive(env.PRODUCT_LOOKUP_DAILY_BUDGET_CENTS, 500, "PRODUCT_LOOKUP_DAILY_BUDGET_CENTS"),
+    monthlyBudgetCents: positive(env.PRODUCT_LOOKUP_MONTHLY_BUDGET_CENTS, 2000, "PRODUCT_LOOKUP_MONTHLY_BUDGET_CENTS"),
+    maxScanBudgetCents: config.productLookupBudgetCents,
+    usageStatePath: env.PRODUCT_LOOKUP_USAGE_STATE_PATH === ":memory:" || (!env.PRODUCT_LOOKUP_USAGE_STATE_PATH && config.usageStatePath === null) ? null : env.PRODUCT_LOOKUP_USAGE_STATE_PATH?.trim() || "server-data/product-lookup-usage.json",
+  };
+  if (config.usageStatePath && config.productLookupProtection.usageStatePath && resolve(config.usageStatePath) === resolve(config.productLookupProtection.usageStatePath)) throw new Error("Product lookup and receipt analysis must use separate accounting files.");
   if (env.NODE_ENV === "production" && !config.openAiApiKey) throw new Error("OPENAI_API_KEY is required for production analysis.");
   return config;
 }
@@ -52,13 +76,13 @@ export function clientAddress(request, hops) {
   if (hops > 0 && forwarded.length >= hops && isIP(forwarded.at(-hops))) return forwarded.at(-hops);
   return request.socket.remoteAddress || "unknown";
 }
-function readBody(request, max) {
+function readBody(request, max, product = false) {
   return new Promise((yes, no) => {
     const chunks = []; let size = 0;
     const clean = () => { request.off("data", data); request.off("end", end); request.off("error", error); request.off("aborted", error); };
-    const data = (chunk) => { size += chunk.length; if (size > max) { clean(); no(new HttpError(413, "REQUEST_TOO_LARGE", "This photo is too large. Choose a smaller receipt photo.")); } else chunks.push(chunk); };
+    const data = (chunk) => { size += chunk.length; if (size > max) { clean(); no(new HttpError(413, "REQUEST_TOO_LARGE", product ? "Product lookup input is too large." : "This photo is too large. Choose a smaller receipt photo.")); } else chunks.push(chunk); };
     const end = () => { clean(); yes(Buffer.concat(chunks)); };
-    const error = () => { clean(); no(new HttpError(400, "INVALID_REQUEST", "The photo upload was interrupted. Please try again.")); };
+    const error = () => { clean(); no(new HttpError(400, "INVALID_REQUEST", product ? "Product lookup input was interrupted." : "The photo upload was interrupted. Please try again.")); };
     request.on("data", data); request.once("end", end); request.once("error", error); request.once("aborted", error);
   });
 }
@@ -69,6 +93,9 @@ export function createRequestListener(config = loadConfig(), hooks = {}) {
   const rateLimit = hooks.rateLimit ?? createRateLimiter(config);
   const guard = hooks.guard ?? createUsageGuard(config);
   const analyzer = hooks.analyze ?? ((images, signal) => analyzeImages(images, config, signal));
+  const productRateLimit = hooks.productRateLimit ?? createRateLimiter(config.productLookupProtection);
+  const productGuard = hooks.productGuard ?? createUsageGuard(config.productLookupProtection);
+  const productLookup = hooks.productLookup ?? ((input, signal) => lookupProduct(input, config, signal));
   return (request, response) => {
     const controller = new AbortController();
     response.once("close", () => { if (!response.writableEnded) controller.abort(); });
@@ -77,6 +104,32 @@ export function createRequestListener(config = loadConfig(), hooks = {}) {
       const prefix = config.routePrefix ?? "";
       if (prefix && !requestPath.startsWith(`${prefix}/`)) throw new HttpError(404, "NOT_FOUND", "Endpoint not found.");
       const path = prefix ? requestPath.slice(prefix.length) : requestPath;
+      if (path === "/api/product/lookup") {
+        if (request.method !== "POST") { response.setHeader("Allow", "POST"); throw new HttpError(405, "METHOD_NOT_ALLOWED", "Use POST for this endpoint."); }
+        const limit = productRateLimit(clientAddress(request, config.trustProxyHops));
+        if (!limit.allowed) { response.setHeader("Retry-After", String(limit.retryAfterSeconds)); throw new HttpError(429, "RATE_LIMITED", "Please wait a minute before looking up more products."); }
+        if (Number(request.headers["content-length"] ?? 0) > config.productLookupMaxRequestBytes) throw new HttpError(413, "REQUEST_TOO_LARGE", "Product lookup input is too large.");
+        if (!/^application\/json(?:;|$)/i.test(request.headers["content-type"] ?? "")) throw new HttpError(415, "INVALID_REQUEST", "Provide product-identification fields as JSON.");
+        let input;
+        try { input = validateProductLookupRequest(JSON.parse((await readBody(request, config.productLookupMaxRequestBytes, true)).toString("utf8"))); }
+        catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, "INVALID_REQUEST", "Provide only valid product-identification fields."); }
+        if (!config.openAiApiKey && !hooks.productLookup) throw new HttpError(503, "SERVICE_UNAVAILABLE", "Product lookup is temporarily unavailable.");
+        let release; const started = Date.now();
+        try {
+          release = productGuard.enter(); await productGuard.reserve();
+          const { result, usage } = await productLookup(input, controller.signal);
+          const validated = validateProductLookupResult(result);
+          await productGuard.record(usage ?? {});
+          if (!controller.signal.aborted) json(response, 200, validated);
+          if (!hooks.productLookup) console.info(JSON.stringify({ event: "product_lookup_complete", durationMs: Date.now() - started, status: validated.status,
+            inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, searchCalls: usage?.searchCalls ?? 0 }));
+        } catch (error) {
+          if (!hooks.productLookup) console.info(JSON.stringify({ event: "product_lookup_failed", durationMs: Date.now() - started, code: error instanceof HttpError ? error.code : "INVALID_LOOKUP" }));
+          if (error instanceof HttpError) throw new HttpError(error.status, error.code, ["DAILY_LIMIT", "MONTHLY_LIMIT", "SERVER_BUSY"].includes(error.code) ? "Product lookup has reached its service limit. Please try again later." : error.message);
+          throw new HttpError(502, "INVALID_LOOKUP", "This product lookup couldn't be verified. Please try again.");
+        } finally { release?.(); }
+        return;
+      }
       if (path === "/health") {
         if (request.method !== "GET") { response.setHeader("Allow", "GET"); throw new HttpError(405, "METHOD_NOT_ALLOWED", "Use GET for this endpoint."); }
         request.resume(); json(response, 200, { ok: true, analysisAvailable: Boolean(config.openAiApiKey) }); return;

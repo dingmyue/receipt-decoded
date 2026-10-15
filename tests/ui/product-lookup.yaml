@@ -1,0 +1,52 @@
+# Start on Results with fresh complete fixture, matched lookup and delay=5000.
+# Native Debug client; no production provider calls. See PRODUCT_IDENTIFICATION.md.
+appId: com.mingyue.receiptdecoded
+---
+- assertVisible: 3 items to review
+- assertNotVisible: Likely product match
+- assertNotVisible: Looking up this product...
+- tapOn: Details for Muffin Mix 500g
+- assertVisible: Looking up this product...
+- assertVisible: Original printed lines
+- extendedWaitUntil:
+    visible: Likely product match
+    timeout: 15000
+- assertVisible: Fixture brand · 500g
+- assertVisible: Costco product page.*
+- takeScreenshot: docs/ui-review/product-identification/02-matched
+- tapOn: Details for Muffin Mix 500g
+- assertNotVisible: Likely product match
+- tapOn: Details for Muffin Mix 500g
+- assertVisible: Likely product match
+- assertNotVisible: Looking up this product...
+- tapOn: View receipt
+- assertVisible: Your Receipt
+- tapOn: Back
+- assertVisible: Likely product match
+- assertNotVisible: Looking up this product...
+- tapOn: Mark Muffin Mix 500g as looks good
+- assertVisible: 2 items to review
+- assertNotVisible: Likely product match
+- scrollUntilVisible:
+    element: Reviewed \(1\)
+    direction: DOWN
+- tapOn: Reviewed \(1\)
+- tapOn: Move Muffin Mix 500g back to review
+- scrollUntilVisible:
+    element: Details for Muffin Mix 500g
+    direction: UP
+- tapOn: Details for Muffin Mix 500g
+- assertVisible: Likely product match
+- assertNotVisible: Looking up this product...
+- tapOn: Details for Muffin Mix 500g
+- tapOn: Details for Chk Enchilada 500g
+- assertVisible: Looking up this product...
+- assertVisible: Original printed lines
+- extendedWaitUntil:
+    visible: Likely product match
+    timeout: 15000
+- tapOn: Details for Chk Enchilada 500g
+- tapOn: Details for Muffin Mix 500g
+- assertVisible: Likely product match
+- assertNotVisible: Looking up this product...
+- tapOn: Costco product page.*

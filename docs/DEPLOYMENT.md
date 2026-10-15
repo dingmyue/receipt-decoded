@@ -8,7 +8,7 @@ Little Moments routes only `/receipt-decoded/**` to the optional receipt backend
 
 The extension is **disabled by default**. It imports the image backend lazily on receipt traffic only. Missing Sharp, invalid receipt configuration or a missing dedicated receipt key returns a safe 503 for receipt routes while Little Moments routes continue. Configuration changes require a server restart. Health for the existing Render service remains `/health`; receipt readiness is checked separately at `/receipt-decoded/health`.
 
-The Receipt Decoded backend runtime is vendored into Little Moments at `server/receipt-decoded/`. Sharp 0.35.5 has a separate nested package and npm lockfile. The small routing adapter is `server/receipt-decoded-route.mjs`; the integration adds nine lines to Little Moments' server entry point. The receipt source remains in this repository. After a backend or policy edit, run `pnpm backend:sync-little-moments` here, review the copied files and `source-manifest.json`, then run both suites. The sync script copies nine known runtime/policy files only; it never copies `.env` or credentials.
+The Receipt Decoded backend runtime is vendored into Little Moments at `server/receipt-decoded/`. Sharp 0.35.5 has a separate nested package and npm lockfile. The small routing adapter is `server/receipt-decoded-route.mjs`; the integration adds nine lines to Little Moments' server entry point. The receipt source remains in this repository. After a backend or policy edit, run `pnpm backend:sync-little-moments` here, review the copied files and `source-manifest.json`, then run both suites. The sync script copies eleven known runtime/policy files only; it never copies `.env` or credentials.
 
 ## Render changes to review before deployment
 
@@ -42,6 +42,34 @@ Other standalone receipt configuration keys can be supplied with the same `RECEI
 
 The mobile public base is **`https://little-moments-api.onrender.com/receipt-decoded`**. Set `EXPO_PUBLIC_AI_BASE_URL` to this exact value in Receipt Decoded's own EAS production environment. `shared/app-info.json` now uses the same verified namespaced base. The mobile client appends `/api/receipt/analyze`; do not include that endpoint in the base value. Public policy paths are `/receipt-decoded/privacy`, `/receipt-decoded/support` and `/receipt-decoded/terms`. Little Moments' mobile base remains the origin without the receipt prefix. Its policy pages remain at their original addresses.
 
+## Product identification in Details — local integration update (October 14, 2026)
+
+The product-lookup runtime and updated privacy policy are now synced into Little Moments. The existing `/receipt-decoded/**` adapter serves `POST /receipt-decoded/api/product/lookup` without changing the main Little Moments routing, auth, pricing or generation code. It accepts bounded merchant/item/product-description JSON, never a receipt photo. Results are `matched`, `possible` or `not_found`, with separately typed errors. It searches only after a Details expansion; receipt analysis does not trigger search. Actual `web_search`, strict normalization and source validation are implemented in the vendored backend. All changes are local; no hosted environment, push, deployment or release has been performed in this update.
+
+Always implement Receipt Decoded backend changes in Little Moments in the same task as app/source changes. This standing requirement is saved in both repositories' root `AGENTS.md` files. Keep the source runtime in Receipt Decoded, sync it with `pnpm backend:sync-little-moments` from that repository, and update the shared adapter, examples, docs and integration tests here as needed. The sync never copies `.env` or credentials.
+
+The adapter forwards these additional **namespaced** server settings. Unprefixed Little Moments credentials/model/budget values are not inherited. The dedicated `RECEIPT_DECODED_OPENAI_API_KEY` is used for lookup too; no new key, package or build command is required.
+
+| Render variable | Default / purpose |
+| --- | --- |
+| `RECEIPT_DECODED_OPENAI_PRODUCT_LOOKUP_MODEL` | `gpt-4.1-mini`; independent of receipt analysis model |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_TIMEOUT_MS` | `20000`, maximum `30000`; covers both provider calls |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_MAX_SEARCH_CALLS` | `3`, maximum `3` |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_RATE_WINDOW_MS` | `60000` |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_RATE_MAX` | `6` per IP/window |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_MAX_CONCURRENT` | `1`; the shared adapter caps lookup at one, independently of analysis |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_DAILY_LIMIT` | `100` attempts, additionally bounded by budget |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_DAILY_BUDGET_CENTS` | `500` reserved cents/day |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_MONTHLY_BUDGET_CENTS` | `2000` reserved cents/month, independent of analysis |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_BUDGET_CENTS` | `25` per mini-model attempt; validated conservative minimum, failures count |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_USAGE_STATE_PATH` | `/persistent/server-data/receipt-decoded-product-lookup-usage.json` |
+
+The adapter supplies that distinct persistent lookup path by default. Tests use `:memory:` or isolated temporary files. Using the same accounting path as receipt analysis fails closed. Lookup rate, concurrency and budget exhaustion do not consume receipt-analysis or Little Moments allowances. Existing analysis limits and accounting files remain unchanged.
+
+**Budget review before deployment:** the example retains the existing $20/month analysis allowance and adds a separate $20/month lookup reservation allowance. Together those defaults permit $40/month in Receipt Decoded reservations. This does not spend or change any live budget until deployment. Set the lookup allowance explicitly during the authorized deployment review if a different combined ceiling is desired; never clear or merge accounting files to bypass caps. At the default 25-cent reservation, the lookup budget permits at most 20/day and 80/month. Actual provider cost and catalog-match quality remain live verification items.
+
+The policy now discloses optional product text and external web search; app consent version 2 refreshes prior grants. Lookup reports are not stored as receipt history and logs contain only aggregate usage/status fields. No Little Moments policy was changed.
+
 ## $20 monthly operational allowance
 
 The backend durably reserves 10 nominal cents **before** each paid attempt, with at most 500/day and 2000/month. Defaults permit at most 50 paid attempts/day and **200/month**. Failed or canceled paid attempts still consume reservations. UTC midnight resets daily counters only; the UTC calendar-month boundary resets the monthly allowance. Reservations survive process restarts on the persistent disk. Corrupt files, unsafe counters and a backwards clock fail closed for receipt analysis. Images/results are not stored in this accounting file.
@@ -52,9 +80,11 @@ A legacy daily-only receipt usage file cannot establish spend on earlier days of
 
 ## Validation and rollback
 
+October 14 product-lookup verification passed: TypeScript in both repositories; all 92 Receipt Decoded automated tests; all 79 Little Moments server tests; all 14 shared-backend integration tests; and the actual compiled mobile-client/shared-server contract check (two synthetic analyses and one synthetic lookup, zero provider calls). Integration tests exercise the real prefixed lookup endpoint with mocked Responses web search, namespaced model/key settings, independent lookup/analysis/LM quotas, concurrency isolation, durable lookup reservations across restarts and all 11 source-manifest hashes. No main Little Moments generation/auth/pricing code, dependency manifest or lockfile was modified. Deployment and live provider verification remain pending.
+
 October 13 verification passed: 56 Receipt Decoded tests (including three new release-configuration checks), strict mobile TypeScript, 79 existing Little Moments server tests and six shared-service integration tests. All tests also passed under Node 24.14.1, matching Render. The added sixth integration test generates authenticated Little Moments results before, during and after a receipt request, verifies the unchanged Little Moments credential, and confirms only its own quota is consumed. Existing tests cover voice/AI, pricing, subscription webhooks and analytics. All nine copied runtime/policy files match the source and SHA-256 manifest.
 
-`pnpm backend:verify-mobile` exercises the actual compiled `lib/ai-client.ts` against Little Moments' shared HTTP listener, using native adapter shims and synthetic providers. It verifies the exact production HTTPS URL and prefix, first-use consent gate, real multipart JPEG upload, full validated response and development LAN URL resolution. Two synthetic checks made zero provider calls. This is a client/server contract check, not a physical-device or deployed TLS check.
+`pnpm backend:verify-mobile` exercises the actual compiled `lib/ai-client.ts` against Little Moments' shared HTTP listener, using native adapter shims and synthetic providers. It verifies the exact production HTTPS URL and prefix, first-use consent gate, real multipart JPEG upload, full validated response and development LAN URL resolution. The check now also exercises product-only JSON lookup through the real shared route and validates a typed lookup rate-limit response. Two synthetic analyses and one synthetic lookup made zero provider calls. This is a client/server contract check, not a physical-device or deployed TLS check.
 
 For the owner's expected low traffic, this single-service integration is suitable to deploy after configuration. No service split or load-test project is required for this launch. Before release, let Render install the nested Linux dependencies, run `pnpm backend:verify-online`, perform one consented synthetic check from the app, verify receipt accounting survives a service restart, and generate one ordinary Little Moments result from its installed app. Existing Little Moments pricing/subscription state must be preserved. These production checks remain pending because no deployment was authorized in this verification pass.
 

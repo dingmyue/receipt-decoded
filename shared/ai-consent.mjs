@@ -1,5 +1,5 @@
 // Bump this version whenever the disclosed recipient, purpose or handling changes.
-export const AI_CONSENT_VERSION = 1;
+export const AI_CONSENT_VERSION = 2;
 
 export function createConsentStore(storage) {
   let granted = false;

@@ -28,7 +28,7 @@ export default function ResultsScreen() {
       </View>
       {presentation.kind === "unreadable" && <Button label="Try a clearer photo" onPress={retryPhoto} />}
       <View style={styles.list}>
-        {presentation.active.map(item => <DuplicateCard key={item.id} item={item} currency={result.receipt.currency} onReview={() => { session.setReviewed(item.id, true); setReviewedExpanded(false); }} />)}
+        {presentation.active.map(item => <DuplicateCard key={item.id} item={item} currency={result.receipt.currency} lookup={session.productLookups[item.id] ?? { status: "idle" }} onLookup={(retry) => session.lookupGroup(item.id, retry)} onReview={() => { session.setReviewed(item.id, true); setReviewedExpanded(false); }} />)}
       </View>
       {presentation.reviewedCount > 0 && <View style={styles.section}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Reviewed (${presentation.reviewedCount})`} accessibilityState={{ expanded: reviewedExpanded }}

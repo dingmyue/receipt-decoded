@@ -1,0 +1,13 @@
+# Start with expanded error state; switch local lookup fixture to possible first.
+appId: com.mingyue.receiptdecoded
+---
+- assertVisible: Couldn't look up this product right now.
+- assertVisible: Original printed lines
+- tapOn: Try product lookup again
+- extendedWaitUntil:
+    visible: Possible product match
+    timeout: 15000
+- assertVisible: This may not be the exact product purchased.
+- assertVisible: Original printed lines
+- assertVisible: Costco product page.*
+- takeScreenshot: docs/ui-review/product-identification/04-possible

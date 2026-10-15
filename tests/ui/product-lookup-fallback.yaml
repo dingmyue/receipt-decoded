@@ -1,0 +1,15 @@
+# Start on fresh Results; configure lookup fixture and MESSAGE before running.
+appId: com.mingyue.receiptdecoded
+---
+- assertVisible: 3 items to review
+- tapOn: Details for Muffin Mix 500g
+- extendedWaitUntil:
+    visible: ${MESSAGE}
+    timeout: 15000
+- assertVisible: Original printed lines
+- assertVisible: Mark Muffin Mix 500g as looks good
+- takeScreenshot: ${SCREENSHOT}
+- tapOn: Details for Muffin Mix 500g
+- tapOn: Details for Muffin Mix 500g
+- assertVisible: ${MESSAGE}
+- assertNotVisible: Looking up this product...
