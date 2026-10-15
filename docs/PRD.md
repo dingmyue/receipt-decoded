@@ -744,9 +744,9 @@ A product represented as:
 
 `2 × $10.00`
 
-should not automatically be considered a duplicate charge.
+must appear as a quantity review with two units on the receipt, even when it is a single printed charge row. The shopper must be able to check the recorded count against what they bought.
 
-It may be a legitimate quantity-two purchase.
+It may be a legitimate quantity-two purchase; displaying it for review is not confirmation of a billing error. Keep the quantity annotation attached to its product rather than extracting it as a second charge. Pack sizes in product descriptions do not establish charged quantity.
 
 ### Rule 3: Handle Discounts and Reversals
 

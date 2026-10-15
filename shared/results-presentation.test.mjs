@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createReceiptReviewState, formatReviewPrice, presentReceiptResults, receiptReviewReducer } from './results-presentation.mjs';
 import { resultsReviewFixtures as fixtures } from '../tests/results-review-fixtures.mjs';
 import { uiResultsFixtures as legacy } from '../tests/ui-results-fixtures.mjs';
+import { traderJoesTea } from '../tests/receipt-data.mjs';
+import { normalizeReceipt } from '../server/receipt-analyzer.mjs';
 const groups = fixtures.complete.duplicateGroups;
 const initial = () => createReceiptReviewState(groups);
 const check = (state, id, reviewed = true) => receiptReviewReducer(state, { type: 'set-reviewed', id, reviewed });
@@ -117,4 +119,16 @@ test('presentation and review actions never mutate the API response', () => {
   const state = check(initial(), groups[0].id);
   presentReceiptResults(fixtures.partial, state.reviewedIds);
   assert.deepEqual(fixtures.partial, original);
+});
+test('a single five-unit tea charge displays five on receipt and supports check/undo', () => {
+  const result = normalizeReceipt(traderJoesTea());
+  const view = presentReceiptResults(result);
+  assert.equal(view.reviewCount, 2); // Repeated milk and the five-unit tea charge.
+  const tea = view.active.find(item => item.name === 'GOLDEN OOLONG TEA');
+  assert.equal(tea.amount, '$1.69 each · 5 on receipt');
+  assert.deepEqual(tea.lines.map(line => line.id), ['tea', 'deposit']);
+  const state = receiptReviewReducer(createReceiptReviewState(result.duplicateGroups), {type:'set-reviewed',id:tea.id,reviewed:true});
+  const reviewed = presentReceiptResults(result,state.reviewedIds).reviewed[0];
+  assert.equal(reviewed.reviewedAmount, '$1.69 · ×5');
+  assert.equal(presentReceiptResults(result,receiptReviewReducer(state,{type:'set-reviewed',id:tea.id,reviewed:false}).reviewedIds).reviewCount,2);
 });

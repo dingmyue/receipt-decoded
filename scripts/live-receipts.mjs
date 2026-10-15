@@ -7,7 +7,7 @@ import { once } from 'node:events';
 const config={...loadConfig(), usageStatePath:null,rateLimitMaxRequests:10};
 if(!config.openAiApiKey) throw new Error('Set the server-only OPENAI_API_KEY before the live test.');
 const server=createServer(createRequestListener(config));server.listen(0,'127.0.0.1');await once(server,'listening');
-const checks=[['duplicate-fees',1,1909],['quantity-two',0,0],['reversal',0,0],['two-groups',2,1149],['not-receipt',0,0],['long-overlap',1,1909]];
+const checks=[['duplicate-fees',1,1909],['quantity-two',1,699],['reversal',0,0],['two-groups',2,1149],['not-receipt',0,0],['long-overlap',1,1909]];
 const results=[];
 try {
  for(const [name,count,cents] of checks){

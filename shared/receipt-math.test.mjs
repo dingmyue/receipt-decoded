@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { potentialExtraCents, summarizeGroups } from './receipt-math.mjs';
 import { normalizeReceipt } from '../server/receipt-analyzer.mjs';
 import { validateReceiptAnalysis } from './receipt-contract.mjs';
-import { costco, rawReceipt, line } from '../tests/receipt-data.mjs';
+import { costco, rawReceipt, line, traderJoesTea } from '../tests/receipt-data.mjs';
 test('Costco regression: two product rows plus their CRV equal 1909 conditional cents',()=>{
  const result=normalizeReceipt(costco()), g=result.duplicateGroups[0];
  assert.equal(result.duplicateGroups.length,1);assert.equal(g.recordedQuantity,2);assert.equal(g.potentialExtraCents,1909);assert.equal(g.relatedLineItemIds.length,4);
@@ -11,8 +11,41 @@ test('Costco regression: two product rows plus their CRV equal 1909 conditional 
  assert.equal(summarizeGroups([g],{[g.id]:2}).amountCents,0);assert.equal(summarizeGroups([g],{[g.id]:2}).expected,1);
  assert.equal(summarizeGroups([g],{[g.id]:null}).unresolved,1);
 });
-test('quantity-two row, fees, FSA and totals are not independent product duplicates',()=>{
- const r=normalizeReceipt(rawReceipt([line('p','EGGS',1398,{quantity:2,unitAmountCents:699}),line('s','FSA',1398,{lineType:'summary'}),line('t','TOTAL',1398,{lineType:'summary'})]));assert.equal(r.duplicateGroups.length,0);
+test('one quantity-two charge is reviewable without counting annotations or summaries as purchases',()=>{
+ const r=normalizeReceipt(rawReceipt([line('p','EGGS',1398,{quantity:2,unitAmountCents:699}),line('s','FSA',1398,{lineType:'summary'}),line('t','TOTAL',1398,{lineType:'summary'})]));assert.equal(r.duplicateGroups.length,1);
+ assert.equal(r.duplicateGroups[0].recordedQuantity,2);assert.deepEqual(r.duplicateGroups[0].relatedLineItemIds,['p']);assert.equal(r.duplicateGroups[0].potentialExtraCents,699);
+});
+test('five teas and linked deposits are one unverified quantity review, alongside the repeated milk',()=>{
+ for(const candidate of [[],[{productLineItemIds:['tea']}]]){
+  const raw=traderJoesTea();raw.duplicateCandidates=candidate;
+  const r=normalizeReceipt(raw), g=r.duplicateGroups.find(g=>g.originalDescription==='GOLDEN OOLONG TEA');
+  assert.equal(r.analysis.status,'complete');assert.equal(r.duplicateGroups.length,2);
+  assert.equal(g.recordedQuantity,5);assert.equal(g.verificationStatus,'unverified');assert.deepEqual(g.relatedLineItemIds,['tea','deposit']);
+  assert.equal(g.units.length,5);assert.ok(g.units.every(u=>u.productCents===169&&u.feeCents===5));
+  assert.equal(potentialExtraCents(g.units,4),174);assert.equal(potentialExtraCents(g.units,5),0);
+  assert.match(g.explanation,/one charge/);
+ }
+});
+test('multi-unit quantities remain visible with missing or inconsistent prices and no invented estimate',()=>{
+ for(const price of [{amountCents:null,unitAmountCents:null},{amountCents:845,unitAmountCents:null},{amountCents:845,unitAmountCents:170}]){
+  const raw=rawReceipt([line('tea','TEA',845,{quantity:5,unitAmountCents:169,...price})]);
+  // 8.45 / 5 can be derived exactly when only the unit price is absent.
+  const g=normalizeReceipt(raw).duplicateGroups[0];assert.equal(g.recordedQuantity,5);
+  if(price.amountCents===null||price.unitAmountCents===170){assert.equal(g.units,null);assert.equal(g.potentialExtraCents,null);}
+  else assert.equal(g.units[0].productCents,169);
+ }
+});
+test('quantity-row corrections suppress zero/one remaining unit and retain multiple or uncertain units',()=>{
+ for(const [reversed,quantity] of [[845,0],[676,1],[169,4],[100,null]]){
+  const raw=rawReceipt([line('tea','TEA',845,{quantity:5,unitAmountCents:169}),line('r','VOID',-reversed,{lineType:'reversal',unitAmountCents:null,relatedLineItemId:'tea'})]);
+  const r=normalizeReceipt(raw);assert.equal(r.duplicateGroups.length,quantity===0||quantity===1?0:1);
+  if(r.duplicateGroups.length) assert.equal(r.duplicateGroups[0].recordedQuantity,quantity);
+ }
+});
+test('pack sizes, one/unknown quantities and multi-unit fees/summaries/payments do not create quantity reviews',()=>{
+ const raw=rawReceipt([line('p','TEA 5 PACK',845),line('u','TEA',200,{quantity:null}),...['fee','summary','tax','payment'].map((lineType,i)=>line(`x${i}`,'5 ITEMS',25,{lineType,quantity:5,unitAmountCents:5}))]);
+ assert.equal(normalizeReceipt(raw).duplicateGroups.length,0);
+ for(const quantity of [1,null]){raw.duplicateCandidates=[{productLineItemIds:['p']}];raw.lineItems[0].quantity=quantity;assert.throws(()=>normalizeReceipt(raw));}
 });
 test('complete product reversal suppresses the corrected duplicate',()=>{
  const raw=costco();raw.lineItems.push(line('r','VOID',-1789,{lineType:'reversal',unitAmountCents:-1789,relatedLineItemId:'p2'}));assert.equal(normalizeReceipt(raw).duplicateGroups.length,0);

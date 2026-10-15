@@ -20,7 +20,7 @@ export const RECEIPT_PROMPT = `You read shopping receipts for Receipt Decoded. T
 Use integer cents for printed monetary amounts, never float dollars. amountCents is the TOTAL for that printed row, not the unit price. For '2 x 10.00', quantity=2, unitAmountCents=1000, amountCents=2000. Quantity annotations are not separate charge rows. Ordinary single-unit product rows have quantity=1. Use null for unreadable values. Prefer a partial result over invented data. Cap at 250 financial rows; if incomplete say partial.
 Preserve exact original product descriptions and item codes. Give a readable interpretedName only when supported by the receipt; never invent brand, flavor, pack size, purchase date, currency, or totals. Currency is a three-letter ISO code when evidenced by retailer/location; otherwise null. Date YYYY-MM-DD only when unambiguous. Omit membership numbers, customer names, addresses, phone numbers and payment-card details. Do not extract financial account details.
 Classify product, fee, discount, tax, reversal, summary, payment, unknown carefully. FSA/EBT/subtotal/totals, quantity annotations, tender, loyalty and informational lines are NOT extra purchases. Ignore personal and payment details. Discounts and reversals have negative amounts. Link fees such as CRV and product-specific discounts to the product row using relatedLineItemId. Link reversals to the precise product or fee reversed, including when the reversal appears later. Never assign a shared discount to multiple rows. Leave ambiguous relationships null and add a short warning. Tax has no product link.
-A duplicate candidate must reference TWO OR MORE independent product charge rows for the same actual product. A SINGLE quantity-two row is NOT a duplicate. Repeated fees, totals, summaries, taxes or payments are NOT separate duplicate candidates. If a reversal fully corrected a duplicate, do not flag it. Repeated products may be legitimate purchases; never assert overcharging, fraud, a refund or savings. We calculate amounts and ask the shopper to verify quantity in code. Do not produce monetary estimates yourself. No candidates for unreadable images; status unreadable and empty arrays. If the photo is not a receipt, status unreadable. Warnings and text must be concise, plain English, max 300 characters each; max 12 warnings.`;
+A duplicate candidate is a product whose recorded quantity needs shopper review: TWO OR MORE independent product charge rows for the same actual product, OR a SINGLE product charge row with an explicit quantity of TWO OR MORE. For 'GOLDEN OOLONG TEA 8.45' followed by '5 @ 1.69', extract ONE product row with quantity=5, unitAmountCents=169, amountCents=845 and include that row as a candidate. A quantity annotation describes units of the charged product, not a separate purchase; a pack size in a product name is not a charged quantity. Repeated fees, totals, summaries, taxes or payments are NOT separate duplicate candidates. If a reversal leaves fewer than two charged units, do not flag it. Multiple units may be legitimate purchases; never assume the shopper bought the printed quantity or assert overcharging, fraud, a refund or savings. Code calculates conditional amounts; the shopper reviews quantities. Do not produce monetary estimates yourself. No candidates for unreadable images; status unreadable and empty arrays. If the photo is not a receipt, status unreadable. Warnings and text must be concise, plain English, max 300 characters each; max 12 warnings.`;
 
 export async function prepareImageInputs(bytes, mime) {
   if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) throw new HttpError(415, "UNSUPPORTED_IMAGE", "Please choose a JPG, PNG, or WebP receipt photo.");
@@ -84,17 +84,18 @@ export function normalizeReceipt(raw) {
   if (raw.analysis.status !== "unreadable" && !products.length) warn("No product charges could be read reliably. Review the original receipt or try another photo.");
   const proposals = [];
   for (const candidate of raw.duplicateCandidates) {
-    if (!Array.isArray(candidate.productLineItemIds) || candidate.productLineItemIds.length < 2 || candidate.productLineItemIds.length > 100 || new Set(candidate.productLineItemIds).size !== candidate.productLineItemIds.length) throw new Error("Invalid candidate references.");
+    if (!Array.isArray(candidate.productLineItemIds) || candidate.productLineItemIds.length < 1 || candidate.productLineItemIds.length > 100 || new Set(candidate.productLineItemIds).size !== candidate.productLineItemIds.length) throw new Error("Invalid candidate references.");
     const rows = candidate.productLineItemIds.map((id) => byId.get(id));
     if (rows.some((l) => !l || l.lineType !== "product")) throw new Error("Invalid product references.");
+    if (rows.length === 1 && !(rows[0].quantity >= 2)) throw new Error("Invalid quantity candidate.");
     if (new Set(rows.map((l) => l.productCode).filter(Boolean)).size > 1) { warn("Some product references were inconsistent and weren't grouped."); continue; }
     if (!rows.every((l) => identity(l) === identity(rows[0]) || (l.productCode && l.productCode === rows[0].productCode))) { warn("Some possible matches couldn't be verified from the printed descriptions."); continue; }
     proposals.push(rows.filter((l) => l.amountCents === null || l.amountCents > 0));
   }
-  // A repeated code/description is still a candidate when the model omits it.
+  // Repeated rows and explicit multi-unit rows need review even if the model omits them.
   const matched = new Map();
   for (const l of products) { const key = identity(l); const rows = matched.get(key) ?? []; rows.push(l); matched.set(key, rows); }
-  for (const rows of matched.values()) if (rows.length > 1) proposals.push(rows.filter((l) => l.amountCents === null || l.amountCents > 0));
+  for (const rows of matched.values()) if (rows.length > 1 || rows.some((l) => l.quantity >= 2)) proposals.push(rows);
   // Merge overlapping proposals so a partial model candidate cannot hide a third row.
   const merged = [];
   for (const proposal of proposals) {
@@ -148,9 +149,9 @@ export function normalizeReceipt(raw) {
         const units = Array.from({ length: remaining }, (_, i) => ({ productCents: unit, feeCents: feeParts[i], discountCents: discountParts[i], totalCents: unit + feeParts[i] + discountParts[i] }));
         if (units.some((u) => u.totalCents < 0)) unknown = true;
         rows.push({ line: l, quantity: remaining, units });
-      } else rows.push({ line: l, quantity: null, units: [] });
+      } else rows.push({ line: l, quantity: remaining, units: [] });
     }
-    if (rows.length < 2) continue;
+    if (!rows.length || (rows.length === 1 && (!(rows[0].line.quantity >= 2) || rows[0].quantity === 1))) continue;
     const recordedQuantity = rows.every((r) => r.quantity !== null) ? rows.reduce((n, r) => n + r.quantity, 0) : null;
     if (recordedQuantity !== null && recordedQuantity > 500) { warn("A large quantity needs a manual review."); continue; }
     for (const l of proposed) used.add(l.id);
@@ -161,7 +162,9 @@ export function normalizeReceipt(raw) {
     if (extra !== null && raw.receipt.totalCents !== null && raw.receipt.totalCents >= 0 && extra > raw.receipt.totalCents) { extra = null; warn("The estimated amount didn't match the printed total."); }
     groups.push({ id: `group-${groups.length + 1}`, productName: productLabel(first), originalDescription: first.originalDescription, productCode: first.productCode,
       relatedLineItemIds: [...related], recordedQuantity, units: extra === null ? null : units, potentialExtraCents: extra,
-      explanation: "This product has more than one separate charge. Check how many you actually bought; repeated purchases can be correct.", verificationStatus: "unverified" });
+      explanation: rows.length === 1
+        ? "This product has multiple units on one charge. Check how many you actually bought; the printed quantity may be correct."
+        : "This product has more than one separate charge. Check how many you actually bought; repeated purchases can be correct.", verificationStatus: "unverified" });
   }
   if (ambiguousAdjustment && groups.length) warn("An unlinked fee, discount or correction needs manual review; affected amounts aren't estimated.");
   if (raw.receipt.totalCents !== null && groups.reduce((sum, g) => sum + (g.potentialExtraCents ?? 0), 0) > raw.receipt.totalCents) {

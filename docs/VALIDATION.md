@@ -14,7 +14,7 @@ This records checks actually performed. Synthetic integration checks are distinc
 | Synthetic case | Expected / observed |
 |---|---|
 | Two CHIFORESTVTY rows + related CRV | One group, 1909 conditional cents |
-| One row with quantity two | No duplicate group |
+| One row with quantity two | Historically no duplicate group; superseded by the quantity-review change in `QUANTITY_REVIEW.md` |
 | Fully voided second product charge | No duplicate group |
 | Two distinct repeated products | Two groups, 1149 conditional cents combined |
 | An image that is not a receipt | Unreadable result, no fabricated groups |

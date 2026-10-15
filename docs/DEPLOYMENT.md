@@ -1,5 +1,7 @@
 # Receipt Decoded on the existing Little Moments Render service
 
+October 14 quantity-review update: single product rows with explicit quantities of two or more now join the review checklist. See `QUANTITY_REVIEW.md` for behavior, retained guards and validation. The runtime is synced locally into Little Moments; existing routes, environment settings and separate analysis/lookup accounting need no change. Deploy the shared backend before expecting production scans to show this behavior.
+
 Owner choice: reuse Little Moments' existing Render web service, with a **$20 monthly Receipt Decoded AI allowance**. The integration is implemented and tested locally, but has not been pushed, deployed or enabled. Publishing requires the owner's final review. No existing Little Moments environment file, key, root dependencies/lockfile or mobile configuration was changed.
 
 ## Prepared integration
