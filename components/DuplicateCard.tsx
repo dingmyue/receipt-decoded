@@ -71,8 +71,8 @@ function ProductIdentification({ state, onRetry }: { state: ProductLookupState; 
 
 export function ReviewedItem({ item, onUndo }: { item: ReviewItem; onUndo: () => void }) {
   return <View style={styles.reviewedRow}>
-    <ReviewCheckbox name={item.name} checked onPress={onUndo} />
     <View style={styles.main}><Text style={styles.reviewedName}>{item.name}</Text><Text style={typography.small}>{item.reviewedAmount}</Text></View>
+    <ReviewCheckbox name={item.name} checked onPress={onUndo} />
   </View>;
 }
 
@@ -94,6 +94,6 @@ const styles = StyleSheet.create({
   sourceTarget: { minHeight: 44, justifyContent: "center" }, sourceLink: { fontSize: 13, lineHeight: 20, color: colors.greenText, textDecorationLine: "underline" },
   detailTitle: { fontWeight: "600", color: colors.textPrimary }, charge: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   lineAmount: { flexShrink: 1, textAlign: "right" },
-  reviewedRow: { borderRadius: 13, backgroundColor: colors.greenBackground, paddingVertical: 8, paddingRight: 12, paddingLeft: 4, flexDirection: "row", alignItems: "center", gap: 6 },
+  reviewedRow: { borderRadius: 13, backgroundColor: colors.greenBackground, paddingVertical: 8, paddingHorizontal: 17, flexDirection: "row", alignItems: "center", gap: 6 },
   reviewedName: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: colors.textPrimary },
 });
