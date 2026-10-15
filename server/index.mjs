@@ -32,16 +32,36 @@ export function loadConfig(env = process.env) {
     usageStatePath: env.USAGE_STATE_PATH === ":memory:" ? null : (env.USAGE_STATE_PATH?.trim() || "server-data/usage.json"),
     trustProxyHops: hops
   };
-  config.productLookupModel = env.OPENAI_PRODUCT_LOOKUP_MODEL?.trim() || "gpt-4.1-mini";
-  if (!/^(?:gpt-4\.1|gpt-4\.1-mini)(?:-2025-04-14)?$/.test(config.productLookupModel)) throw new Error("OPENAI_PRODUCT_LOOKUP_MODEL must be a supported GPT-4.1 or GPT-4.1 mini model (including its 2025-04-14 snapshot).");
+  // Optional lookup must fail closed without taking receipt analysis offline.
+  try {
+    Object.assign(config, loadProductLookupConfig(env, config.usageStatePath));
+    config.productLookupConfigurationValid = true;
+  } catch {
+    config.productLookupConfigurationValid = false;
+    config.productLookupProtection = null;
+  }
+  if (env.NODE_ENV === "production" && !config.openAiApiKey) throw new Error("OPENAI_API_KEY is required for production analysis.");
+  return config;
+}
+
+function loadProductLookupConfig(env, analysisUsageStatePath) {
+  const config = { productLookupModel: env.OPENAI_PRODUCT_LOOKUP_MODEL?.trim() || "gpt-4.1-mini" };
+  const model = config.productLookupModel.replace(/-2025-04-14$/, "");
+  const profiles = new Map([
+    ["gpt-4.1-mini", { input: 0.4, output: 1.6, reservation: 25 }],
+    ["gpt-4.1", { input: 2, output: 8, reservation: 110 }],
+    // Use long-context rates conservatively: search may push input above 272k.
+    ["gpt-6-luna", { input: 0.2, output: 0.75, reservation: 25 }],
+  ]);
+  const profile = profiles.get(model);
+  if (!profile || (model === "gpt-6-luna" && config.productLookupModel !== model)) throw new Error("Unsupported product lookup model.");
   config.productLookupTimeoutMs = positive(env.PRODUCT_LOOKUP_TIMEOUT_MS, 20_000, "PRODUCT_LOOKUP_TIMEOUT_MS", 30_000);
   config.productLookupMaxRequestBytes = 4096;
   config.productLookupMaxResponseBytes = 256 * 1024;
   config.productLookupMaxSearchCalls = positive(env.PRODUCT_LOOKUP_MAX_SEARCH_CALLS, 3, "PRODUCT_LOOKUP_MAX_SEARCH_CALLS", 3);
-  const mini = config.productLookupModel.includes("mini");
   // Conservative ceiling: 128k search context per call + bounded normalization, two outputs and tool fees.
-  const minimumReservation = Math.ceil(((128_000 * config.productLookupMaxSearchCalls + 100_000) * (mini ? 0.4 : 2) + 2000 * (mini ? 1.6 : 8)) / 10_000 + config.productLookupMaxSearchCalls);
-  config.productLookupBudgetCents = positive(env.PRODUCT_LOOKUP_BUDGET_CENTS, mini ? 25 : 110, "PRODUCT_LOOKUP_BUDGET_CENTS");
+  const minimumReservation = Math.ceil(((128_000 * config.productLookupMaxSearchCalls + 100_000) * profile.input + 2000 * profile.output) / 10_000 + config.productLookupMaxSearchCalls);
+  config.productLookupBudgetCents = positive(env.PRODUCT_LOOKUP_BUDGET_CENTS, profile.reservation, "PRODUCT_LOOKUP_BUDGET_CENTS");
   if (config.productLookupBudgetCents < minimumReservation) throw new Error("PRODUCT_LOOKUP_BUDGET_CENTS is below the conservative model/tool reservation.");
   config.productLookupProtection = {
     rateLimitWindowMs: positive(env.PRODUCT_LOOKUP_RATE_WINDOW_MS, 60_000, "PRODUCT_LOOKUP_RATE_WINDOW_MS"),
@@ -51,10 +71,9 @@ export function loadConfig(env = process.env) {
     dailyBudgetCents: positive(env.PRODUCT_LOOKUP_DAILY_BUDGET_CENTS, 500, "PRODUCT_LOOKUP_DAILY_BUDGET_CENTS"),
     monthlyBudgetCents: positive(env.PRODUCT_LOOKUP_MONTHLY_BUDGET_CENTS, 2000, "PRODUCT_LOOKUP_MONTHLY_BUDGET_CENTS"),
     maxScanBudgetCents: config.productLookupBudgetCents,
-    usageStatePath: env.PRODUCT_LOOKUP_USAGE_STATE_PATH === ":memory:" || (!env.PRODUCT_LOOKUP_USAGE_STATE_PATH && config.usageStatePath === null) ? null : env.PRODUCT_LOOKUP_USAGE_STATE_PATH?.trim() || "server-data/product-lookup-usage.json",
+    usageStatePath: env.PRODUCT_LOOKUP_USAGE_STATE_PATH === ":memory:" || (!env.PRODUCT_LOOKUP_USAGE_STATE_PATH && analysisUsageStatePath === null) ? null : env.PRODUCT_LOOKUP_USAGE_STATE_PATH?.trim() || "server-data/product-lookup-usage.json",
   };
-  if (config.usageStatePath && config.productLookupProtection.usageStatePath && resolve(config.usageStatePath) === resolve(config.productLookupProtection.usageStatePath)) throw new Error("Product lookup and receipt analysis must use separate accounting files.");
-  if (env.NODE_ENV === "production" && !config.openAiApiKey) throw new Error("OPENAI_API_KEY is required for production analysis.");
+  if (analysisUsageStatePath && config.productLookupProtection.usageStatePath && resolve(analysisUsageStatePath) === resolve(config.productLookupProtection.usageStatePath)) throw new Error("Product lookup and receipt analysis must use separate accounting files.");
   return config;
 }
 
@@ -93,9 +112,11 @@ export function createRequestListener(config = loadConfig(), hooks = {}) {
   const rateLimit = hooks.rateLimit ?? createRateLimiter(config);
   const guard = hooks.guard ?? createUsageGuard(config);
   const analyzer = hooks.analyze ?? ((images, signal) => analyzeImages(images, config, signal));
-  const productRateLimit = hooks.productRateLimit ?? createRateLimiter(config.productLookupProtection);
-  const productGuard = hooks.productGuard ?? createUsageGuard(config.productLookupProtection);
+  const lookupConfigured = config.productLookupConfigurationValid !== false && Boolean(config.productLookupProtection);
+  const productRateLimit = lookupConfigured ? hooks.productRateLimit ?? createRateLimiter(config.productLookupProtection) : null;
+  const productGuard = lookupConfigured ? hooks.productGuard ?? createUsageGuard(config.productLookupProtection) : null;
   const productLookup = hooks.productLookup ?? ((input, signal) => lookupProduct(input, config, signal));
+  if (!lookupConfigured) console.warn(JSON.stringify({ event: "product_lookup_configuration_invalid", code: "INVALID_LOOKUP_CONFIG" }));
   return (request, response) => {
     const controller = new AbortController();
     response.once("close", () => { if (!response.writableEnded) controller.abort(); });
@@ -106,6 +127,7 @@ export function createRequestListener(config = loadConfig(), hooks = {}) {
       const path = prefix ? requestPath.slice(prefix.length) : requestPath;
       if (path === "/api/product/lookup") {
         if (request.method !== "POST") { response.setHeader("Allow", "POST"); throw new HttpError(405, "METHOD_NOT_ALLOWED", "Use POST for this endpoint."); }
+        if (!lookupConfigured) throw new HttpError(503, "SERVICE_UNAVAILABLE", "Product lookup is temporarily unavailable. You can still check receipts.");
         const limit = productRateLimit(clientAddress(request, config.trustProxyHops));
         if (!limit.allowed) { response.setHeader("Retry-After", String(limit.retryAfterSeconds)); throw new HttpError(429, "RATE_LIMITED", "Please wait a minute before looking up more products."); }
         if (Number(request.headers["content-length"] ?? 0) > config.productLookupMaxRequestBytes) throw new HttpError(413, "REQUEST_TOO_LARGE", "Product lookup input is too large.");

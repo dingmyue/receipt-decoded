@@ -26,14 +26,16 @@ const expectedTea=validateReceiptAnalysis(normalizeReceipt(traderJoesTea()));
 let analyzerCalls=0, lookupCalls=0;
 const lookupRequest={merchantName:'Costco',productCode:'2022263',originalDescription:'CHIFORESTVTY',interpretedName:'Chi Forest Sparkling Water'};
 const lookupResult={status:'possible',product:{name:'Chi Forest Sparkling Water',brand:'Chi Forest',size:null},source:{title:'Synthetic product source',url:'https://www.costco.com/chi-forest.product.2022263.html',domain:'costco.com'},matchReason:'Product name resembles the receipt description; the exact item could not be verified.'};
-const server=createServer(createRequestListener({
- config:loadConfig({OPENAI_API_KEY:'lm-mock',APP_SHARED_SECRET:'lm-mock-secret',AI_SERVER_PRICING_STATE_FILE:':memory:',AI_SERVER_EVENTS_FILE:':memory:',RECEIPT_DECODED_ENABLED:'true',RECEIPT_DECODED_OPENAI_API_KEY:'receipt-mock',RECEIPT_DECODED_USAGE_STATE_PATH:':memory:',RECEIPT_DECODED_PRODUCT_LOOKUP_RATE_MAX:'1'}),
+const sharedEnv={OPENAI_API_KEY:'lm-mock',APP_SHARED_SECRET:'lm-mock-secret',AI_SERVER_PRICING_STATE_FILE:':memory:',AI_SERVER_EVENTS_FILE:':memory:',RECEIPT_DECODED_ENABLED:'true',RECEIPT_DECODED_OPENAI_API_KEY:'receipt-mock',RECEIPT_DECODED_USAGE_STATE_PATH:':memory:',RECEIPT_DECODED_PRODUCT_LOOKUP_RATE_MAX:'1',RECEIPT_DECODED_OPENAI_PRODUCT_LOOKUP_MODEL:'gpt-6-luna'};
+const sharedOptions={
  logger:{info(){},warn(){},error(){}},
  fetchImpl:async()=>{throw Error('No live provider calls permitted');},
  receiptHooks:{analyze:async()=>{analyzerCalls++;return{result:normalizeSharedReceipt(analyzerCalls===1?costco():traderJoesTea()),usage:{}};},productLookup:async input=>{lookupCalls++;assert.deepEqual(input,lookupRequest);return{result:lookupResult,usage:{}};}}
-}));
+};
+const server=createServer(createRequestListener({...sharedOptions,config:loadConfig(sharedEnv)}));
+let unavailableServer;
 server.listen(0,'127.0.0.1');await once(server,'listening');
-const localBase=`http://127.0.0.1:${server.address().port}`;
+let localBase=`http://127.0.0.1:${server.address().port}`;
 const requests=[];
 const source=await readFile(resolve(root,'lib/ai-client.ts'),'utf8');
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -85,5 +87,17 @@ try{
  assert.equal(lookupCalls,1);assert.equal(requests.length,4);
  const health=await(await fetch(localBase+'/health')).json();assert.equal(health.data.status,'ok');
  assert.equal(analyzerCalls,2);
- console.log('PASS: actual mobile client → Little Moments shared server: consent gate, HTTPS URL/prefix, multipart receipt analysis including one five-unit product row with linked deposit, product-only JSON lookup, validated results, typed lookup rate limit, development LAN resolution and Little Moments health. Two synthetic analyses and one synthetic lookup; zero provider calls. Expo adapters are mocked; device/TLS verification follows deployment.');
-}finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(temp,{recursive:true,force:true});}
+ unavailableServer=createServer(createRequestListener({...sharedOptions,config:loadConfig({...sharedEnv,RECEIPT_DECODED_OPENAI_PRODUCT_LOOKUP_MODEL:'unverified-model'})}));
+ unavailableServer.listen(0,'127.0.0.1');await once(unavailableServer,'listening');
+ localBase=`http://127.0.0.1:${unavailableServer.address().port}`;
+ await assert.rejects(()=>client.lookupProduct(lookupRequest,new AbortController().signal),err=>err.code==='SERVICE_UNAVAILABLE');
+ assert.equal(lookupCalls,1);
+ const stillReceived=await client.analyzeReceipt(photo,true,new AbortController().signal);
+ assert.deepEqual(JSON.parse(JSON.stringify(stillReceived)),expectedTea);
+ assert.equal(analyzerCalls,3);
+ assert.deepEqual(await(await fetch(localBase+'/receipt-decoded/health')).json(),{ok:true,analysisAvailable:true});
+ console.log('PASS: actual mobile client → Little Moments shared server: consent, HTTPS/prefix, multipart analysis, five-unit product/deposit, Luna lookup configuration, product-only lookup JSON, typed rate limit and unavailable lookup errors, development LAN resolution, and successful receipt analysis despite invalid lookup configuration. Three synthetic analyses and one synthetic lookup; zero provider calls. Expo adapters are mocked; device/TLS verification follows deployment.');
+}finally{
+ for(const activeServer of [server,unavailableServer].filter(Boolean)){activeServer.closeAllConnections();await new Promise(resolve=>activeServer.close(resolve));}
+ await rm(temp,{recursive:true,force:true});
+}

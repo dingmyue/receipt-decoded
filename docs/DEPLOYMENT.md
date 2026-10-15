@@ -8,7 +8,7 @@ Owner choice: reuse Little Moments' existing Render web service, with a **$20 mo
 
 Little Moments routes only `/receipt-decoded/**` to the optional receipt backend. Existing `/health`, `/privacy`, `/terms`, `/support`, voice/AI, pricing, subscription webhooks and analytics retain their existing implementation and contracts. Receipt traffic bypasses Little Moments' body parsers, app-secret authentication and pricing quotas; it retains its own explicit consent field, image validation, IP rate limits and durable reservations. It does not need or receive Little Moments' private key or app shared secret.
 
-The extension is **disabled by default**. It imports the image backend lazily on receipt traffic only. Missing Sharp, invalid receipt configuration or a missing dedicated receipt key returns a safe 503 for receipt routes while Little Moments routes continue. Configuration changes require a server restart. Health for the existing Render service remains `/health`; receipt readiness is checked separately at `/receipt-decoded/health`.
+The extension is **disabled by default**. It imports the image backend lazily on receipt traffic only. Missing Sharp, invalid receipt configuration or a missing dedicated receipt key returns a safe 503 for receipt routes while Little Moments routes continue. Invalid optional lookup configuration disables only `/receipt-decoded/api/product/lookup`; receipt analysis, health and policies remain available. Configuration changes require a server restart. Health for the existing Render service remains `/health`; receipt readiness is checked separately at `/receipt-decoded/health`.
 
 The Receipt Decoded backend runtime is vendored into Little Moments at `server/receipt-decoded/`. Sharp 0.35.5 has a separate nested package and npm lockfile. The small routing adapter is `server/receipt-decoded-route.mjs`; the integration adds nine lines to Little Moments' server entry point. The receipt source remains in this repository. After a backend or policy edit, run `pnpm backend:sync-little-moments` here, review the copied files and `source-manifest.json`, then run both suites. The sync script copies eleven known runtime/policy files only; it never copies `.env` or credentials.
 
@@ -54,7 +54,7 @@ The adapter forwards these additional **namespaced** server settings. Unprefixed
 
 | Render variable | Default / purpose |
 | --- | --- |
-| `RECEIPT_DECODED_OPENAI_PRODUCT_LOOKUP_MODEL` | `gpt-4.1-mini`; independent of receipt analysis model |
+| `RECEIPT_DECODED_OPENAI_PRODUCT_LOOKUP_MODEL` | `gpt-4.1-mini` default; also supports `gpt-6-luna`, GPT-4.1 and the GPT-4.1 models' 2025-04-14 snapshots; independent of receipt analysis |
 | `RECEIPT_DECODED_PRODUCT_LOOKUP_TIMEOUT_MS` | `20000`, maximum `30000`; covers both provider calls |
 | `RECEIPT_DECODED_PRODUCT_LOOKUP_MAX_SEARCH_CALLS` | `3`, maximum `3` |
 | `RECEIPT_DECODED_PRODUCT_LOOKUP_RATE_WINDOW_MS` | `60000` |
@@ -63,7 +63,7 @@ The adapter forwards these additional **namespaced** server settings. Unprefixed
 | `RECEIPT_DECODED_PRODUCT_LOOKUP_DAILY_LIMIT` | `100` attempts, additionally bounded by budget |
 | `RECEIPT_DECODED_PRODUCT_LOOKUP_DAILY_BUDGET_CENTS` | `500` reserved cents/day |
 | `RECEIPT_DECODED_PRODUCT_LOOKUP_MONTHLY_BUDGET_CENTS` | `2000` reserved cents/month, independent of analysis |
-| `RECEIPT_DECODED_PRODUCT_LOOKUP_BUDGET_CENTS` | `25` per mini-model attempt; validated conservative minimum, failures count |
+| `RECEIPT_DECODED_PRODUCT_LOOKUP_BUDGET_CENTS` | `25` per Luna/mini attempt, `110` for GPT-4.1; validated conservative minimum, failures count |
 | `RECEIPT_DECODED_PRODUCT_LOOKUP_USAGE_STATE_PATH` | `/persistent/server-data/receipt-decoded-product-lookup-usage.json` |
 
 The adapter supplies that distinct persistent lookup path by default. Tests use `:memory:` or isolated temporary files. Using the same accounting path as receipt analysis fails closed. Lookup rate, concurrency and budget exhaustion do not consume receipt-analysis or Little Moments allowances. Existing analysis limits and accounting files remain unchanged.

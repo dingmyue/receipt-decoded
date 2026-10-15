@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request as httpRequest } from 'node:http';
 import { once } from 'node:events';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { lookupProduct, PRODUCT_LOOKUP_PROMPT, collectLookupSources, validateLookupEvidence } from './product-lookup.mjs';
 import { loadConfig, createRequestListener } from './index.mjs';
 import { validateProductLookupRequest, validateProductLookupResult, safeProductUrl } from '../shared/product-lookup-contract.mjs';
@@ -33,6 +36,21 @@ test('actual web_search then tool-free strict normalization returns exact retail
   else { assert.equal(body.text.format.strict, true); assert.equal(body.tools, undefined); assert.ok(body.input.includes('source-1')); }
  });
  assert.equal(calls, 2); assert.equal(result.status, 'matched'); assert.equal(result.source.domain, 'costco.com'); assert.equal(result.source.url, url); assert.deepEqual(result.product, product); assert.equal(usage.searchCalls, 1);
+});
+test('Luna performs bounded web search and strict normalization with reasoning explicitly disabled', async () => {
+ const cfg = loadConfig({ OPENAI_API_KEY: 'mock-secret', OPENAI_PRODUCT_LOOKUP_MODEL: 'gpt-6-luna', USAGE_STATE_PATH: ':memory:' });
+ let calls = 0;
+ const { result, usage } = await lookupProduct(request, cfg, new AbortController().signal, async (_url, init) => {
+  const body = JSON.parse(init.body);
+  assert.equal(body.model, 'gpt-6-luna'); assert.equal(body.store, false); assert.deepEqual(body.reasoning, { effort: 'none' });
+  if (calls++ === 0) {
+   assert.equal(body.tools[0].type, 'web_search'); assert.equal(body.max_tool_calls, 3); assert.equal(body.max_output_tokens, 1200);
+   return Response.json(searched());
+  }
+  assert.equal(body.tools, undefined); assert.equal(body.text.format.strict, true); assert.equal(body.max_output_tokens, 800);
+  return Response.json(normalized(candidate()));
+ });
+ assert.equal(calls, 2); assert.equal(result.status, 'matched'); assert.equal(result.source.url, url); assert.equal(usage.searchCalls, 1);
 });
 test('name-level evidence or a different retailer is possible, never exact from generated prose alone', async () => {
  for (const search of [searched({ sourceUrl: 'https://www.costco.com/chi-forest.html?item=2022263', title: 'Chi Forest Flavored Sparkling Water' }), searched({ sourceUrl: 'https://www.walmart.com/ip/2022263', title: 'Chi Forest Flavored Sparkling Water · item 2022263' })]) {
@@ -133,9 +151,56 @@ test('HTTP invalid content, oversized/chunked bodies and missing service do not 
  assert.equal(calls, 0);
  await withServer(async base => assert.equal((await post(base)).status, 503));
 });
-test('configuration bounds tool calls/time/cost, rejects unverified models and shared accounting files', () => {
- for (const env of [{ OPENAI_PRODUCT_LOOKUP_MODEL: 'gpt-4.1-nano' }, { PRODUCT_LOOKUP_MAX_SEARCH_CALLS: '4' }, { PRODUCT_LOOKUP_TIMEOUT_MS: '31000' }, { PRODUCT_LOOKUP_BUDGET_CENTS: '1' }, { PRODUCT_LOOKUP_USAGE_STATE_PATH: 'server-data/usage.json' }]) assert.throws(() => loadConfig(env));
+const invalidLookupSettings = [
+ { OPENAI_PRODUCT_LOOKUP_MODEL: 'gpt-4.1-nano' }, { OPENAI_PRODUCT_LOOKUP_MODEL: 'gpt-6-luna-2025-04-14' },
+ { PRODUCT_LOOKUP_MAX_SEARCH_CALLS: '4' }, { PRODUCT_LOOKUP_TIMEOUT_MS: '31000' }, { PRODUCT_LOOKUP_BUDGET_CENTS: '1' },
+ { PRODUCT_LOOKUP_USAGE_STATE_PATH: 'server-data/usage.json' }, { PRODUCT_LOOKUP_RATE_MAX: '-1' },
+ { PRODUCT_LOOKUP_MAX_CONCURRENT: '0' }, { PRODUCT_LOOKUP_DAILY_LIMIT: 'bad' },
+ { PRODUCT_LOOKUP_DAILY_BUDGET_CENTS: '0' }, { PRODUCT_LOOKUP_MONTHLY_BUDGET_CENTS: 'bad' },
+];
+test('invalid lookup settings disable only lookup; model-specific reservation floors stay enforced', () => {
+ for (const env of invalidLookupSettings) {
+  const cfg = loadConfig(env); assert.equal(cfg.productLookupConfigurationValid, false); assert.equal(cfg.productLookupProtection, null);
+  assert.equal(cfg.receiptModel, 'gpt-4.1-mini'); assert.equal(cfg.monthlyBudgetCents, 2000);
+ }
  assert.equal(loadConfig({ OPENAI_PRODUCT_LOOKUP_MODEL: 'gpt-4.1' }).productLookupBudgetCents, 110);
+ assert.equal(loadConfig({ OPENAI_PRODUCT_LOOKUP_MODEL: 'gpt-6-luna' }).productLookupBudgetCents, 25);
+ // At three searches: Luna's long-context floor is 13 cents; mini's is 23; full's is 102.
+ for (const [model, floor] of [['gpt-6-luna',13],['gpt-4.1-mini',23],['gpt-4.1',102]]) {
+  assert.equal(loadConfig({ OPENAI_PRODUCT_LOOKUP_MODEL: model, PRODUCT_LOOKUP_BUDGET_CENTS: String(floor-1) }).productLookupConfigurationValid, false);
+  assert.equal(loadConfig({ OPENAI_PRODUCT_LOOKUP_MODEL: model, PRODUCT_LOOKUP_BUDGET_CENTS: String(floor) }).productLookupConfigurationValid, true);
+ }
+ for (const model of ['gpt-4.1','gpt-4.1-mini','gpt-4.1-2025-04-14','gpt-4.1-mini-2025-04-14','gpt-6-luna']) assert.equal(loadConfig({ OPENAI_PRODUCT_LOOKUP_MODEL: model }).productLookupConfigurationValid, true);
+});
+test('misconfigured lookup never invokes providers or guards and leaves health, policies and analysis available', async () => {
+ const bytes = await sharp({ create: { width: 128, height: 128, channels: 3, background: 'white' } }).png().toBuffer();
+ const directory = await mkdtemp(join(tmpdir(), 'receipt-invalid-lookup-'));
+ try {
+ for (const env of invalidLookupSettings) {
+  const settings = env.PRODUCT_LOOKUP_USAGE_STATE_PATH
+   ? { ...env, USAGE_STATE_PATH: join(directory,'analysis.json'), PRODUCT_LOOKUP_USAGE_STATE_PATH: join(directory,'analysis.json') }
+   : env;
+  let analyses = 0, lookups = 0;
+  await withServer(async base => {
+   for (let attempt=0;attempt<2;attempt++) {
+    const response = await post(base); assert.equal(response.status, 503);
+    const body = await response.json(); assert.equal(body.error.code, 'SERVICE_UNAVAILABLE');
+    assert.doesNotMatch(JSON.stringify(body), /mock-secret|server-data|stack|OPENAI_PRODUCT/);
+   }
+   assert.deepEqual(await (await fetch(`${base}/health`)).json(), {ok:true,analysisAvailable:true});
+   for (const path of ['privacy','support','terms']) assert.equal((await fetch(`${base}/${path}`)).status, 200);
+   const form = new FormData(); form.append('image', new Blob([bytes], {type:'image/png'}), 'synthetic.png'); form.append('consentToAi','true');
+   const response = await fetch(`${base}/api/receipt/analyze`, {method:'POST',body:form}); assert.equal(response.status,200);
+   assert.equal((await response.json()).duplicateGroups.length,1);
+  }, {OPENAI_API_KEY:'mock-secret',...settings}, {
+   analyze: async () => { analyses++; return {result:normalizeReceipt(costco())}; },
+   productLookup: async () => { lookups++; assert.fail('Lookup must remain disabled even with injected provider'); },
+   productRateLimit: () => assert.fail('Invalid lookup must not use its rate limiter'),
+   productGuard: {enter(){assert.fail('Invalid lookup must not consume a reservation');}},
+  });
+  assert.equal(analyses,1); assert.equal(lookups,0);
+ }
+ } finally { await rm(directory, {recursive:true,force:true}); }
 });
 test('timeout interrupts a stalled successful response body without retrying', async () => {
  let calls = 0;

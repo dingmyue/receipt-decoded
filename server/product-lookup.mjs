@@ -113,6 +113,7 @@ function outputText(body) {
 export async function lookupProduct(raw, config, signal, fetchImpl = fetch) {
   let request;
   try { request = validateProductLookupRequest(raw); } catch { throw new HttpError(400, 'INVALID_REQUEST', 'Provide only valid product-identification fields.'); }
+  if (config.productLookupConfigurationValid === false) throw new HttpError(503, 'SERVICE_UNAVAILABLE', 'Product lookup is temporarily unavailable.');
   if (!config.openAiApiKey) throw new HttpError(503, 'SERVICE_UNAVAILABLE', 'Product lookup is temporarily unavailable.');
   const combined = AbortSignal.any([signal, AbortSignal.timeout(config.productLookupTimeoutMs)]);
   let inputTokens = 0, outputTokens = 0, searchCalls = 0;
@@ -121,7 +122,10 @@ export async function lookupProduct(raw, config, signal, fetchImpl = fetch) {
     let response;
     try { response = await fetchImpl('https://api.openai.com/v1/responses', { method: 'POST', signal: combined,
       headers: { Authorization: `Bearer ${config.openAiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: config.productLookupModel, store: false, ...params }) }); }
+      // Explicitly disable reasoning for Luna's bounded search/report and JSON extraction.
+      // The 1200/800 output caps and reservation cover both calls without hidden reasoning use.
+      body: JSON.stringify({ model: config.productLookupModel, store: false,
+        ...(config.productLookupModel === 'gpt-6-luna' ? { reasoning: { effort: 'none' } } : {}), ...params }) }); }
     catch { throw new HttpError(503, 'SERVICE_UNAVAILABLE', 'Product lookup is temporarily unavailable.'); }
     if (!response.ok) { await response.body?.cancel().catch(() => {}); throw new HttpError(503, 'SERVICE_UNAVAILABLE', 'Product lookup is temporarily unavailable.'); }
     const body = await boundedJson(response, config.productLookupMaxResponseBytes, combined);
